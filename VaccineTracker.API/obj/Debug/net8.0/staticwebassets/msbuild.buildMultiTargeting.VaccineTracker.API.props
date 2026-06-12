@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\VaccineTracker.API.props" />
-</Project>
