@@ -1,0 +1,17 @@
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\bin\Debug\net8.0\VaccineTracker.Application.deps.json
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\bin\Debug\net8.0\VaccineTracker.Application.dll
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\bin\Debug\net8.0\VaccineTracker.Application.pdb
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\bin\Debug\net8.0\VaccineTracker.Contracts.dll
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\bin\Debug\net8.0\VaccineTracker.Domain.dll
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\bin\Debug\net8.0\VaccineTracker.Contracts.pdb
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\bin\Debug\net8.0\VaccineTracker.Domain.pdb
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\VaccineTracker.Application.csproj.AssemblyReference.cache
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\VaccineTracker.Application.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\VaccineTracker.Application.AssemblyInfoInputs.cache
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\VaccineTracker.Application.AssemblyInfo.cs
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\VaccineTracker.Application.csproj.CoreCompileInputs.cache
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\VaccineT.6C8A35CA.Up2Date
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\VaccineTracker.Application.dll
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\refint\VaccineTracker.Application.dll
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\VaccineTracker.Application.pdb
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Application\obj\Debug\net8.0\ref\VaccineTracker.Application.dll

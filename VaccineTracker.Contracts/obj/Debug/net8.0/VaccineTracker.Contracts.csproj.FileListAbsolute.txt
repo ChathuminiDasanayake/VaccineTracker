@@ -1,0 +1,11 @@
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\bin\Debug\net8.0\VaccineTracker.Contracts.deps.json
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\bin\Debug\net8.0\VaccineTracker.Contracts.dll
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\bin\Debug\net8.0\VaccineTracker.Contracts.pdb
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\obj\Debug\net8.0\VaccineTracker.Contracts.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\obj\Debug\net8.0\VaccineTracker.Contracts.AssemblyInfoInputs.cache
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\obj\Debug\net8.0\VaccineTracker.Contracts.AssemblyInfo.cs
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\obj\Debug\net8.0\VaccineTracker.Contracts.csproj.CoreCompileInputs.cache
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\obj\Debug\net8.0\VaccineTracker.Contracts.dll
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\obj\Debug\net8.0\refint\VaccineTracker.Contracts.dll
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\obj\Debug\net8.0\VaccineTracker.Contracts.pdb
+c:\Users\chath\source\repos\VaccineTracker\VaccineTracker.Contracts\obj\Debug\net8.0\ref\VaccineTracker.Contracts.dll
