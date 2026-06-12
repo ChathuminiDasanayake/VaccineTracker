@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using VaccineTracker.Domain.Common;
+using VaccineTracker.Domain.Enums;
 
 namespace VaccineTracker.Domain.Entities
 {
@@ -16,18 +17,20 @@ namespace VaccineTracker.Domain.Entities
 
         public string LastName { get; set; } = string.Empty;
 
+        public Gender? Gender { get; set; }
+
         public Guid? HospitalId { get; set; }
 
         public Hospital? Hospital { get; set; }
 
         public string? PhoneNumber { get; set; }
 
-        public bool IsActive { get; set; } = true;
+        public EntityStatus Status { get; set; } = EntityStatus.Active;
 
         public DateTime? LastLoginAt { get; set; }
 
         public string? EmployeeId { get; set; }
 
-        public ICollection<string>? Roles { get; set; }
+        public ICollection<Role>? Roles { get; set; }
     }
 }
