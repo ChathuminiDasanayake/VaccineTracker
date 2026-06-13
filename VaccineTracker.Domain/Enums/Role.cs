@@ -2,7 +2,7 @@ namespace VaccineTracker.Domain.Enums
 {
     public enum Role
     {
-        Admin = 1,
+        PlatformAdmin = 1,
         HospitalAdmin = 2,
         Doctor = 3,
         Nurse = 4,
