@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using VaccineTracker.Application.Interfaces;
+using VaccineTracker.Contracts.Common;
 using VaccineTracker.Contracts.Hospitals;
 using VaccineTracker.Domain.Entities;
 using VaccineTracker.Infrastructure.Persistence;
@@ -15,12 +16,38 @@ public sealed class HospitalsService : IHospitalsService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<HospitalResponse>> GetHospitalsAsync(CancellationToken cancellationToken = default)
+    public async Task<PagedResponse<HospitalResponse>> GetHospitalsAsync(
+        GetHospitalsRequest request,
+        CancellationToken cancellationToken = default)
     {
-        return await _dbContext.Hospitals
+        var pageNumber = Math.Max(request.PageNumber, 1);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
+        var query = _dbContext.Hospitals
             .AsNoTracking()
-            .Where(hospital => !hospital.IsDeleted)
+            .Where(hospital => !hospital.IsDeleted);
+
+        if (request.IsActive.HasValue)
+        {
+            query = query.Where(hospital => hospital.IsActive == request.IsActive.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var search = request.Search.Trim();
+
+            query = query.Where(hospital =>
+                hospital.Name.Contains(search) ||
+                (hospital.RegistrationNumber != null && hospital.RegistrationNumber.Contains(search)) ||
+                (hospital.ContactEmail != null && hospital.ContactEmail.Contains(search)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var hospitals = await query
             .OrderBy(hospital => hospital.Name)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .Select(hospital => new HospitalResponse(
                 hospital.Id,
                 hospital.Name,
@@ -33,6 +60,17 @@ public sealed class HospitalsService : IHospitalsService
                 hospital.CreatedAt,
                 hospital.UpdatedAt))
             .ToListAsync(cancellationToken);
+
+        var totalPages = totalCount == 0
+            ? 0
+            : (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        return new PagedResponse<HospitalResponse>(
+            hospitals,
+            pageNumber,
+            pageSize,
+            totalCount,
+            totalPages);
     }
 
     public async Task<HospitalResponse?> GetHospitalAsync(Guid id, CancellationToken cancellationToken = default)

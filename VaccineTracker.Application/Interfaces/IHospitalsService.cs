@@ -1,10 +1,13 @@
+using VaccineTracker.Contracts.Common;
 using VaccineTracker.Contracts.Hospitals;
 
 namespace VaccineTracker.Application.Interfaces;
 
 public interface IHospitalsService
 {
-    Task<IReadOnlyList<HospitalResponse>> GetHospitalsAsync(CancellationToken cancellationToken = default);
+    Task<PagedResponse<HospitalResponse>> GetHospitalsAsync(
+        GetHospitalsRequest request,
+        CancellationToken cancellationToken = default);
 
     Task<HospitalResponse?> GetHospitalAsync(Guid id, CancellationToken cancellationToken = default);
 

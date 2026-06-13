@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using VaccineTracker.Application.Interfaces;
+using VaccineTracker.Contracts.Common;
 using VaccineTracker.Contracts.Hospitals;
 
 namespace VaccineTracker.API.Controllers;
@@ -16,11 +17,12 @@ public sealed class HospitalsController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<HospitalResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<HospitalResponse>>> GetHospitals(
+    [ProducesResponseType(typeof(PagedResponse<HospitalResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponse<HospitalResponse>>> GetHospitals(
+        [FromQuery] GetHospitalsRequest request,
         CancellationToken cancellationToken)
     {
-        var hospitals = await _hospitalsService.GetHospitalsAsync(cancellationToken);
+        var hospitals = await _hospitalsService.GetHospitalsAsync(request, cancellationToken);
 
         return Ok(hospitals);
     }
