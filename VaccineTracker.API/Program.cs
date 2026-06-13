@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using VaccineTracker.Application.Interfaces;
 using VaccineTracker.Infrastructure.Persistence;
+using VaccineTracker.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<VaccineTrackerDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<IHospitalsService, HospitalsService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
