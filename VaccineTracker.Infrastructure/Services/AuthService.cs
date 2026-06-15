@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using VaccineTracker.Application.Authentication;
 using VaccineTracker.Application.Interfaces;
 using VaccineTracker.Contracts.Auth;
 using VaccineTracker.Domain.Enums;
@@ -53,7 +54,7 @@ public sealed class AuthService : IAuthService
 
         var roles = user.Roles.Select(role => role.ToString()).ToArray();
         var expiresAtUtc = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes);
-        var token = GenerateToken(user.Id, user.Username, roles, user.HospitalId, expiresAtUtc);
+        var token = GenerateToken(user.Id, user.Username, user.Email, roles, user.HospitalId, expiresAtUtc);
 
         return new LoginResponse(
             token,
@@ -67,6 +68,7 @@ public sealed class AuthService : IAuthService
     private string GenerateToken(
         Guid userId,
         string username,
+        string email,
         IReadOnlyCollection<string> roles,
         Guid? hospitalId,
         DateTime expiresAtUtc)
@@ -75,19 +77,21 @@ public sealed class AuthService : IAuthService
         {
             new(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new(JwtRegisteredClaimNames.UniqueName, username),
+            new(JwtRegisteredClaimNames.Email, email),
+            new(ClaimTypes.Email, email),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new("UserId", userId.ToString())
+            new(JwtClaimNames.UserId, userId.ToString())
         };
 
         if (hospitalId.HasValue)
         {
-            claims.Add(new Claim("HospitalId", hospitalId.Value.ToString()));
+            claims.Add(new Claim(JwtClaimNames.HospitalId, hospitalId.Value.ToString()));
         }
 
         foreach (var role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
-            claims.Add(new Claim("Role", role));
+            claims.Add(new Claim(JwtClaimNames.Role, role));
         }
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));

@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VaccineTracker.API.Authorization;
 using VaccineTracker.Application.Interfaces;
 using VaccineTracker.Contracts.Common;
 using VaccineTracker.Contracts.Hospitals;
@@ -6,6 +8,7 @@ using VaccineTracker.Contracts.Hospitals;
 namespace VaccineTracker.API.Controllers;
 
 [ApiController]
+[Authorize(Policy = AuthorizationPolicies.PlatformAdmin)]
 [Route("api/[controller]")]
 public sealed class HospitalsController : ControllerBase
 {
