@@ -13,9 +13,9 @@ public sealed class CurrentUser : ICurrentUser
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public Guid UserId => GetGuidClaim(JwtClaimNames.UserId);
+    public Guid UserId => GetRequiredGuidClaim(JwtClaimNames.UserId);
 
-    public Guid? HospitalId => GetGuidClaim(JwtClaimNames.HospitalId);
+    public Guid? HospitalId => GetOptionalGuidClaim(JwtClaimNames.HospitalId);
 
     public string Email => GetClaimValue(ClaimTypes.Email);
 
@@ -26,12 +26,21 @@ public sealed class CurrentUser : ICurrentUser
         return _httpContextAccessor.HttpContext?.User.FindFirstValue(claimType) ?? string.Empty;
     }
 
-    private Guid GetGuidClaim(string claimType)
+    private Guid GetRequiredGuidClaim(string claimType)
     {
         var claimValue = GetClaimValue(claimType);
 
         return Guid.TryParse(claimValue, out var value)
             ? value
-            : Guid.Empty;
+            : throw new InvalidOperationException($"Required claim '{claimType}' is missing or invalid.");
+    }
+
+    private Guid? GetOptionalGuidClaim(string claimType)
+    {
+        var claimValue = GetClaimValue(claimType);
+
+        return Guid.TryParse(claimValue, out var value)
+            ? value
+            : null;
     }
 }
