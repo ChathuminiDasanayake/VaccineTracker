@@ -31,6 +31,6 @@ namespace VaccineTracker.Domain.Entities
 
         public string? EmployeeId { get; set; }
 
-        public ICollection<Role>? Roles { get; set; }
+        public List<Role> Roles { get; set; } = [];
     }
 }
