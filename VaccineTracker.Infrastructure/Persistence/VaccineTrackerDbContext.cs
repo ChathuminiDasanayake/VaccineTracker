@@ -21,5 +21,22 @@ public sealed class VaccineTrackerDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(VaccineTrackerDbContext).Assembly);
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.Property(user => user.NormalizedUsername)
+                .HasMaxLength(100);
+
+            entity.Property(user => user.NormalizedEmail)
+                .HasMaxLength(254);
+
+            entity.HasIndex(user => user.NormalizedUsername)
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+
+            entity.HasIndex(user => user.NormalizedEmail)
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+        });
     }
 }

@@ -92,11 +92,13 @@ public sealed class UsersService : IUsersService
         }
 
         var username = request.Username.Trim();
+        var normalizedUsername = Normalize(username);
         var email = request.Email.Trim();
+        var normalizedEmail = Normalize(email);
         var userExists = await _dbContext.Users
             .AnyAsync(user =>
                 !user.IsDeleted &&
-                (user.Username == username || user.Email == email),
+                (user.NormalizedUsername == normalizedUsername || user.NormalizedEmail == normalizedEmail),
                 cancellationToken);
 
         if (userExists)
@@ -108,7 +110,9 @@ public sealed class UsersService : IUsersService
         var user = new User
         {
             Username = username,
+            NormalizedUsername = normalizedUsername,
             Email = email,
+            NormalizedEmail = normalizedEmail,
             PasswordHash = _passwordHashService.HashPassword(request.Password),
             FirstName = request.FirstName.Trim(),
             LastName = request.LastName.Trim(),
@@ -248,6 +252,11 @@ public sealed class UsersService : IUsersService
     {
         return Enum.TryParse(role, ignoreCase: true, out value) &&
             Enum.IsDefined(value);
+    }
+
+    private static string Normalize(string value)
+    {
+        return value.Trim().ToUpperInvariant();
     }
 
     private static bool TryParseOptionalGender(string? gender, out Gender? value)

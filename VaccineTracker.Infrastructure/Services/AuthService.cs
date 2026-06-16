@@ -37,9 +37,10 @@ public sealed class AuthService : IAuthService
         }
 
         var username = request.Username.Trim();
+        var normalizedUsername = username.ToUpperInvariant();
         var user = await _dbContext.Users
             .FirstOrDefaultAsync(
-                user => user.Username == username &&
+                user => user.NormalizedUsername == normalizedUsername &&
                     user.Status == EntityStatus.Active &&
                     !user.IsDeleted,
                 cancellationToken);
