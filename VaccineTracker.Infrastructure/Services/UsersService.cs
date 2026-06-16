@@ -72,7 +72,17 @@ public sealed class UsersService : IUsersService
             return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidGender);
         }
 
+        if (!CanManageHospitalUsers())
+        {
+            return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
+        }
+
         var hospitalId = ResolveHospitalId(request.HospitalId);
+        if (!IsPlatformAdmin() && !hospitalId.HasValue)
+        {
+            return new UserOperationResult<UserResponse>(UserOperationStatus.Unauthorized);
+        }
+
         if (!hospitalId.HasValue)
         {
             return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidHospital);
@@ -83,10 +93,16 @@ public sealed class UsersService : IUsersService
             return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
         }
 
-        var hospitalExists = await _dbContext.Hospitals
-            .AnyAsync(hospital => hospital.Id == hospitalId.Value && !hospital.IsDeleted && hospital.IsActive, cancellationToken);
+        var hospital = await _dbContext.Hospitals
+            .AsNoTracking()
+            .FirstOrDefaultAsync(hospital => hospital.Id == hospitalId.Value && !hospital.IsDeleted, cancellationToken);
 
-        if (!hospitalExists)
+        if (hospital is null)
+        {
+            return new UserOperationResult<UserResponse>(UserOperationStatus.NotFound);
+        }
+
+        if (!hospital.IsActive)
         {
             return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidHospital);
         }
@@ -140,6 +156,11 @@ public sealed class UsersService : IUsersService
         if (!TryParseRole(request.Role, out var role))
         {
             return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidRole);
+        }
+
+        if (!CanManageHospitalUsers())
+        {
+            return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
         }
 
         if (!CanAssignRole(role))
@@ -243,9 +264,19 @@ public sealed class UsersService : IUsersService
             : HospitalAdminAssignableRoles.Contains(role);
     }
 
+    private bool CanManageHospitalUsers()
+    {
+        return IsPlatformAdmin() || IsHospitalAdmin();
+    }
+
     private bool IsPlatformAdmin()
     {
         return string.Equals(_currentUser.Role, Role.PlatformAdmin.ToString(), StringComparison.Ordinal);
+    }
+
+    private bool IsHospitalAdmin()
+    {
+        return string.Equals(_currentUser.Role, Role.HospitalAdmin.ToString(), StringComparison.Ordinal);
     }
 
     private static bool TryParseRole(string role, out Role value)

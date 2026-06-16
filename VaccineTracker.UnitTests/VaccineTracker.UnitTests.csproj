@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.*" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="NUnit" Version="3.14.0" />
     <PackageReference Include="NUnit.Analyzers" Version="3.9.0" />
@@ -19,6 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\\VaccineTracker.Application\\VaccineTracker.Application.csproj" />
+    <ProjectReference Include="..\\VaccineTracker.Contracts\\VaccineTracker.Contracts.csproj" />
+    <ProjectReference Include="..\\VaccineTracker.Domain\\VaccineTracker.Domain.csproj" />
+    <ProjectReference Include="..\\VaccineTracker.Infrastructure\\VaccineTracker.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

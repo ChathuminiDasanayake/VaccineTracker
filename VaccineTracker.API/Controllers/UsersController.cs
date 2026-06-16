@@ -22,7 +22,9 @@ public sealed class UsersController : ControllerBase
     [HttpPost("hospital-users")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<UserResponse>> CreateHospitalUser(
         CreateHospitalUserRequest request,
@@ -90,6 +92,7 @@ public sealed class UsersController : ControllerBase
         return result.Status switch
         {
             UserOperationStatus.Success when result.Value is not null => onSuccess(result.Value),
+            UserOperationStatus.Unauthorized => Unauthorized(),
             UserOperationStatus.NotFound => NotFound(),
             UserOperationStatus.Forbidden => Forbid(),
             UserOperationStatus.Conflict => Conflict("A user with the same username or email already exists."),
