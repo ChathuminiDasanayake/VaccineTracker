@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using VaccineTracker.API.Authentication;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using VaccineTracker.API.Authorization;
 using VaccineTracker.API.RateLimiting;
 using VaccineTracker.Application.Interfaces;
@@ -131,6 +132,11 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext());
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -141,6 +147,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseSerilogRequestLogging();
 
 app.UseRouting();
 app.UseRateLimiter();

@@ -10,6 +10,7 @@ using VaccineTracker.Contracts.Auth;
 using VaccineTracker.Domain.Enums;
 using VaccineTracker.Infrastructure.Authentication;
 using VaccineTracker.Infrastructure.Persistence;
+using Microsoft.Extensions.Logging;
 
 namespace VaccineTracker.Infrastructure.Services;
 
@@ -18,26 +19,32 @@ public sealed class AuthService : IAuthService
     private readonly VaccineTrackerDbContext _dbContext;
     private readonly IPasswordHashService _passwordHashService;
     private readonly JwtSettings _jwtSettings;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         VaccineTrackerDbContext dbContext,
         IPasswordHashService passwordHashService,
-        IOptions<JwtSettings> jwtSettings)
+        IOptions<JwtSettings> jwtSettings,
+        ILogger<AuthService> logger)
     {
         _dbContext = dbContext;
         _passwordHashService = passwordHashService;
         _jwtSettings = jwtSettings.Value;
+        _logger = logger;
     }
 
     public async Task<LoginResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
         {
+            _logger.LogWarning("Login failed because username or password was empty.");
             return null;
         }
 
         var username = request.Username.Trim();
         var normalizedUsername = username.ToUpperInvariant();
+        _logger.LogInformation("Login attempt started for username {Username}.", username);
+
         var user = await _dbContext.Users
             .FirstOrDefaultAsync(
                 user => user.NormalizedUsername == normalizedUsername &&
@@ -47,6 +54,7 @@ public sealed class AuthService : IAuthService
 
         if (user is null || !_passwordHashService.VerifyPassword(request.Password, user.PasswordHash))
         {
+            _logger.LogWarning("Login failed for username {Username}.", username);
             return null;
         }
 
@@ -56,6 +64,8 @@ public sealed class AuthService : IAuthService
         var roles = user.Roles.Select(role => role.ToString()).ToArray();
         var expiresAtUtc = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes);
         var token = GenerateToken(user.Id, user.Username, user.Email, roles, user.HospitalId, expiresAtUtc);
+
+        _logger.LogInformation("Login succeeded for user {UserId}.", user.Id);
 
         return new LoginResponse(
             token,

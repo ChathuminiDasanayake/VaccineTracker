@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using VaccineTracker.Application.Interfaces;
 using VaccineTracker.Application.Users;
 using VaccineTracker.Contracts.Users;
@@ -212,7 +213,8 @@ public sealed class UsersServiceTests
         return new UsersService(
             dbContext,
             new PasswordHashService(),
-            new TestCurrentUser(currentUserId, hospitalId, role.ToString()));
+            new TestCurrentUser(currentUserId, hospitalId, role.ToString()),
+            NullLogger<UsersService>.Instance);
     }
 
     private static CreateHospitalUserRequest CreateValidRequest(

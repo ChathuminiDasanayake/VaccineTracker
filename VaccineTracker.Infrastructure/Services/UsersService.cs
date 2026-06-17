@@ -6,6 +6,7 @@ using VaccineTracker.Domain.Entities;
 using VaccineTracker.Domain.Enums;
 using VaccineTracker.Infrastructure.Authentication;
 using VaccineTracker.Infrastructure.Persistence;
+using Microsoft.Extensions.Logging;
 
 namespace VaccineTracker.Infrastructure.Services;
 
@@ -31,22 +32,31 @@ public sealed class UsersService : IUsersService
     private readonly VaccineTrackerDbContext _dbContext;
     private readonly IPasswordHashService _passwordHashService;
     private readonly ICurrentUser _currentUser;
+    private readonly ILogger<UsersService> _logger;
 
     public UsersService(
         VaccineTrackerDbContext dbContext,
         IPasswordHashService passwordHashService,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        ILogger<UsersService> logger)
     {
         _dbContext = dbContext;
         _passwordHashService = passwordHashService;
         _currentUser = currentUser;
+        _logger = logger;
     }
 
     public async Task<UserOperationResult<UserResponse>> GetUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Getting user {UserId}.", userId);
+
         var user = await GetManageableUserAsync(userId, cancellationToken);
+        if (user.Status != UserOperationStatus.Success)
+        {
+            _logger.LogWarning("Get user {UserId} failed with status {Status}.", userId, user.Status);
+        }
 
         return user.Status == UserOperationStatus.Success && user.Value is not null
             ? new UserOperationResult<UserResponse>(UserOperationStatus.Success, ToResponse(user.Value))
@@ -59,39 +69,48 @@ public sealed class UsersService : IUsersService
     {
         if (!TryParseRole(request.Role, out var role))
         {
+            _logger.LogWarning("User creation failed because role {Role} is invalid.", request.Role);
             return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidRole);
         }
 
         if (!CanAssignRole(role))
         {
+            _logger.LogWarning("User creation failed because current user cannot assign role {Role}.", role);
             return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
         }
 
         if (!TryParseOptionalGender(request.Gender, out var gender))
         {
+            _logger.LogWarning("User creation failed because gender {Gender} is invalid.", request.Gender);
             return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidGender);
         }
 
         if (!CanManageHospitalUsers())
         {
+            _logger.LogWarning("User creation failed because current user cannot manage hospital users.");
             return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
         }
 
         var hospitalId = ResolveHospitalId(request.HospitalId);
         if (!IsPlatformAdmin() && !hospitalId.HasValue)
         {
+            _logger.LogWarning("User creation failed because current user has no hospital claim.");
             return new UserOperationResult<UserResponse>(UserOperationStatus.Unauthorized);
         }
 
         if (!hospitalId.HasValue)
         {
+            _logger.LogWarning("User creation failed because hospital id was not provided.");
             return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidHospital);
         }
 
         if (!CanAccessHospital(hospitalId.Value))
         {
+            _logger.LogWarning("User creation failed because current user cannot access hospital {HospitalId}.", hospitalId.Value);
             return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
         }
+
+        _logger.LogInformation("Creating user with username {Username} for hospital {HospitalId}.", request.Username, hospitalId.Value);
 
         var hospital = await _dbContext.Hospitals
             .AsNoTracking()
@@ -99,11 +118,13 @@ public sealed class UsersService : IUsersService
 
         if (hospital is null)
         {
+            _logger.LogWarning("User creation failed because hospital {HospitalId} was not found.", hospitalId.Value);
             return new UserOperationResult<UserResponse>(UserOperationStatus.NotFound);
         }
 
         if (!hospital.IsActive)
         {
+            _logger.LogWarning("User creation failed because hospital {HospitalId} is inactive.", hospitalId.Value);
             return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidHospital);
         }
 
@@ -119,6 +140,7 @@ public sealed class UsersService : IUsersService
 
         if (userExists)
         {
+            _logger.LogWarning("User creation failed because username {Username} or email {Email} already exists.", username, email);
             return new UserOperationResult<UserResponse>(UserOperationStatus.Conflict);
         }
 
@@ -145,6 +167,8 @@ public sealed class UsersService : IUsersService
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        _logger.LogInformation("User {UserId} created successfully.", user.Id);
+
         return new UserOperationResult<UserResponse>(UserOperationStatus.Success, ToResponse(user));
     }
 
@@ -155,27 +179,32 @@ public sealed class UsersService : IUsersService
     {
         if (!TryParseRole(request.Role, out var role))
         {
+            _logger.LogWarning("Assign role failed for user {UserId} because role {Role} is invalid.", userId, request.Role);
             return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidRole);
         }
 
         if (!CanManageHospitalUsers())
         {
+            _logger.LogWarning("Assign role failed for user {UserId} because current user cannot manage hospital users.", userId);
             return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
         }
 
         if (!CanAssignRole(role))
         {
+            _logger.LogWarning("Assign role failed for user {UserId} because current user cannot assign role {Role}.", userId, role);
             return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
         }
 
         var user = await GetManageableUserAsync(userId, cancellationToken);
         if (user.Status == UserOperationStatus.NotFound || user.Value is null)
         {
+            _logger.LogWarning("Assign role failed for user {UserId} with status {Status}.", userId, user.Status);
             return new UserOperationResult<UserResponse>(user.Status);
         }
 
         if (user.Status == UserOperationStatus.Forbidden)
         {
+            _logger.LogWarning("Assign role failed for user {UserId} with status {Status}.", userId, user.Status);
             return new UserOperationResult<UserResponse>(user.Status);
         }
 
@@ -184,6 +213,8 @@ public sealed class UsersService : IUsersService
         user.Value.UpdatedBy = _currentUser.UserId.ToString();
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Role {Role} assigned to user {UserId}.", role, userId);
 
         return new UserOperationResult<UserResponse>(UserOperationStatus.Success, ToResponse(user.Value));
     }
@@ -201,6 +232,7 @@ public sealed class UsersService : IUsersService
     {
         if (userId == _currentUser.UserId)
         {
+            _logger.LogWarning("Deactivate user {UserId} failed because current user cannot deactivate themselves.", userId);
             return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
         }
 
@@ -232,6 +264,7 @@ public sealed class UsersService : IUsersService
         var user = await GetManageableUserAsync(userId, cancellationToken);
         if (user.Status != UserOperationStatus.Success || user.Value is null)
         {
+            _logger.LogWarning("Set user {UserId} status to {Status} failed with result {Result}.", userId, status, user.Status);
             return new UserOperationResult<UserResponse>(user.Status);
         }
 
@@ -240,6 +273,8 @@ public sealed class UsersService : IUsersService
         user.Value.UpdatedBy = _currentUser.UserId.ToString();
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("User {UserId} status changed to {Status}.", userId, status);
 
         return new UserOperationResult<UserResponse>(UserOperationStatus.Success, ToResponse(user.Value));
     }

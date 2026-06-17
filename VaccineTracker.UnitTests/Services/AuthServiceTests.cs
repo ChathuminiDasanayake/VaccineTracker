@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using VaccineTracker.Domain.Entities;
 using VaccineTracker.Domain.Enums;
@@ -6,6 +7,7 @@ using VaccineTracker.Contracts.Auth;
 using VaccineTracker.Infrastructure.Authentication;
 using VaccineTracker.Infrastructure.Persistence;
 using VaccineTracker.Infrastructure.Services;
+
 
 namespace VaccineTracker.UnitTests.Services;
 
@@ -46,7 +48,8 @@ public sealed class AuthServiceTests
         var service = new AuthService(
             dbContext,
             passwordHashService,
-            Options.Create(CreateJwtSettings()));
+            Options.Create(CreateJwtSettings()),
+            NullLogger<AuthService>.Instance);
 
         var response = await service.LoginAsync(new LoginRequest(" doctor.one ", "Password@123"));
 
