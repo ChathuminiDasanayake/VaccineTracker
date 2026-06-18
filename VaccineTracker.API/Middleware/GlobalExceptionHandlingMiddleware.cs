@@ -21,24 +21,27 @@ public sealed class GlobalExceptionHandlingMiddleware
         }
         catch (Exception exception)
         {
-            // log exception
-            _logger.LogError(exception, "Unhandled exception occurred.");
             // create error response
             var (statusCode, title, detail) = exception switch
             {
-                ArgumentException =>
-                    (StatusCodes.Status400BadRequest,
-                     "Bad Request",
-                     exception.Message),
+                ValidationException =>
+       (StatusCodes.Status400BadRequest, "Validation Error", exception.Message),
 
-                KeyNotFoundException =>
-                    (StatusCodes.Status404NotFound,
-                     "Resource Not Found",
-                     exception.Message),
+                ForbiddenException =>
+                    (StatusCodes.Status403Forbidden, "Forbidden", exception.Message),
+
+                NotFoundException =>
+                    (StatusCodes.Status404NotFound, "Resource Not Found", exception.Message),
+
+                ConflictException =>
+                    (StatusCodes.Status409Conflict, "Conflict", exception.Message),
+
+                BusinessRuleException =>
+                    (StatusCodes.Status422UnprocessableEntity, "Business Rule Violation", exception.Message),
 
                 _ =>
                     (StatusCodes.Status500InternalServerError,
-                     "An unexpected error occurred.",
+                     "An unexpected error occurred",
                      "Please try again later.")
             };
 
@@ -49,8 +52,18 @@ public sealed class GlobalExceptionHandlingMiddleware
                 Detail = detail
             };
 
-            _logger.LogError(exception, "Unhandled exception occurred.");
-
+           if (exception is ValidationException
+    or ForbiddenException
+    or NotFoundException
+    or ConflictException
+    or BusinessRuleException)
+{
+    _logger.LogWarning(exception, "Request failed: {Message}", exception.Message);
+}
+else
+{
+    _logger.LogError(exception, "Unhandled exception occurred.");
+}
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/json";
 

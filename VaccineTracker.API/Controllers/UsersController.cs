@@ -102,4 +102,11 @@ public sealed class UsersController : ControllerBase
             _ => BadRequest()
         };
     }
+
+    [AllowAnonymous]
+    [HttpGet("throw")]
+    public IActionResult Throw()
+    {
+        throw new InvalidOperationException("Test global exception");
+    }
 }

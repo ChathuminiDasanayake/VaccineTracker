@@ -69,26 +69,25 @@ public sealed class UsersService : IUsersService
     {
         if (!TryParseRole(request.Role, out var role))
         {
-            _logger.LogWarning("User creation failed because role {Role} is invalid.", request.Role);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidRole);
+            throw new ValidationException(
+    $"Role '{request.Role}' is invalid.");
         }
 
         if (!CanAssignRole(role))
         {
-            _logger.LogWarning("User creation failed because current user cannot assign role {Role}.", role);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
+            throw new ForbiddenException(
+    $"You cannot assign the requested role '{role}'.");
         }
 
         if (!TryParseOptionalGender(request.Gender, out var gender))
         {
-            _logger.LogWarning("User creation failed because gender {Gender} is invalid.", request.Gender);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidGender);
+            throw new ValidationException(
+    $"Gender '{request.Gender}' is invalid.");
         }
 
         if (!CanManageHospitalUsers())
         {
-            _logger.LogWarning("User creation failed because current user cannot manage hospital users.");
-            return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
+            throw new ForbiddenException("You cannot manage hospital users.");
         }
 
         var hospitalId = ResolveHospitalId(request.HospitalId);
@@ -118,14 +117,13 @@ public sealed class UsersService : IUsersService
 
         if (hospital is null)
         {
-            _logger.LogWarning("User creation failed because hospital {HospitalId} was not found.", hospitalId.Value);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.NotFound);
+            throw new NotFoundException("Hospital", hospitalId.Value);
         }
 
         if (!hospital.IsActive)
         {
-            _logger.LogWarning("User creation failed because hospital {HospitalId} is inactive.", hospitalId.Value);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidHospital);
+            throw new BusinessRuleException(
+                "User creation failed because the hospital is inactive.");
         }
 
         var username = request.Username.Trim();
@@ -140,8 +138,8 @@ public sealed class UsersService : IUsersService
 
         if (userExists)
         {
-            _logger.LogWarning("User creation failed because username {Username} or email {Email} already exists.", username, email);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.Conflict);
+            throw new ConflictException(
+                "A user with this username or email already exists.");
         }
 
         var now = DateTime.UtcNow;
@@ -185,14 +183,14 @@ public sealed class UsersService : IUsersService
 
         if (!CanManageHospitalUsers())
         {
-            _logger.LogWarning("Assign role failed for user {UserId} because current user cannot manage hospital users.", userId);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
+            throw new ForbiddenException(
+                $"You cannot manage user '{userId}'.");
         }
 
         if (!CanAssignRole(role))
         {
-            _logger.LogWarning("Assign role failed for user {UserId} because current user cannot assign role {Role}.", userId, role);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
+            throw new ForbiddenException(
+        $"Assign role failed for user {userId} because current user cannot assign role {role}");
         }
 
         var user = await GetManageableUserAsync(userId, cancellationToken);
@@ -232,8 +230,8 @@ public sealed class UsersService : IUsersService
     {
         if (userId == _currentUser.UserId)
         {
-            _logger.LogWarning("Deactivate user {UserId} failed because current user cannot deactivate themselves.", userId);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
+            throw new BusinessRuleException(
+                "You cannot deactivate your own account.");
         }
 
         return await SetUserStatusAsync(userId, EntityStatus.Inactive, cancellationToken);
@@ -248,7 +246,7 @@ public sealed class UsersService : IUsersService
 
         if (user is null)
         {
-            return new UserOperationResult<User>(UserOperationStatus.NotFound);
+            throw new NotFoundException("User", userId);
         }
 
         return user.HospitalId.HasValue && CanAccessHospital(user.HospitalId.Value)
