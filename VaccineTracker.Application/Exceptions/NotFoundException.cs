@@ -1,3 +1,5 @@
+namespace VaccineTracker.Application.Exceptions;
+
 public sealed class NotFoundException : Exception
 {
     public NotFoundException(string resource, object key)

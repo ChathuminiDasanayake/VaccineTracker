@@ -1,28 +1,27 @@
-using VaccineTracker.Application.Users;
 using VaccineTracker.Contracts.Users;
 
 namespace VaccineTracker.Application.Interfaces;
 
 public interface IUsersService
 {
-    Task<UserOperationResult<UserResponse>> GetUserAsync(
+    Task<UserResponse> GetUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
 
-    Task<UserOperationResult<UserResponse>> CreateHospitalUserAsync(
+    Task<UserResponse> CreateHospitalUserAsync(
         CreateHospitalUserRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<UserOperationResult<UserResponse>> AssignRoleAsync(
+    Task<UserResponse> AssignRoleAsync(
         Guid userId,
         AssignUserRoleRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<UserOperationResult<UserResponse>> ActivateUserAsync(
+    Task<UserResponse> ActivateUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
 
-    Task<UserOperationResult<UserResponse>> DeactivateUserAsync(
+    Task<UserResponse> DeactivateUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
 }

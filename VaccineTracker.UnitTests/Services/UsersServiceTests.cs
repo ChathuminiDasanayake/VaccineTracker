@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using VaccineTracker.Application.Exceptions;
 using VaccineTracker.Application.Interfaces;
-using VaccineTracker.Application.Users;
 using VaccineTracker.Contracts.Users;
 using VaccineTracker.Domain.Entities;
 using VaccineTracker.Domain.Enums;
@@ -43,15 +43,13 @@ public sealed class UsersServiceTests
             "0771234567",
             "EMP-001"));
 
-        Assert.That(result.Status, Is.EqualTo(UserOperationStatus.Success));
-        Assert.That(result.Value, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(result.Value!.Username, Is.EqualTo("doctor.one"));
-            Assert.That(result.Value.Email, Is.EqualTo("doctor.one@test.com"));
-            Assert.That(result.Value.HospitalId, Is.EqualTo(hospitalId));
-            Assert.That(result.Value.Roles, Is.EquivalentTo(new[] { "Doctor" }));
-            Assert.That(result.Value.Status, Is.EqualTo("Active"));
+            Assert.That(result.Username, Is.EqualTo("doctor.one"));
+            Assert.That(result.Email, Is.EqualTo("doctor.one@test.com"));
+            Assert.That(result.HospitalId, Is.EqualTo(hospitalId));
+            Assert.That(result.Roles, Is.EquivalentTo(new[] { "Doctor" }));
+            Assert.That(result.Status, Is.EqualTo("Active"));
         });
 
         var user = await dbContext.Users.SingleAsync(user => user.Email == "doctor.one@test.com");
@@ -65,7 +63,7 @@ public sealed class UsersServiceTests
     }
 
     [Test]
-    public async Task CreateHospitalUserAsync_WhenEmailAlreadyExists_ReturnsConflict()
+    public async Task CreateHospitalUserAsync_WhenEmailAlreadyExists_ThrowsConflictException()
     {
         await using var dbContext = CreateDbContext();
         var hospitalId = Guid.NewGuid();
@@ -95,25 +93,24 @@ public sealed class UsersServiceTests
 
         var service = CreateService(dbContext, Guid.NewGuid(), hospitalId, Role.HospitalAdmin);
 
-        var result = await service.CreateHospitalUserAsync(new CreateHospitalUserRequest(
-            "new.user",
-            "Doctor.One@Test.com",
-            "Password@123",
-            "New",
-            "User",
-            null,
-            "Nurse",
-            null,
-            null,
-            null));
+        Assert.ThrowsAsync<ConflictException>(async () =>
+            await service.CreateHospitalUserAsync(new CreateHospitalUserRequest(
+                "new.user",
+                "Doctor.One@Test.com",
+                "Password@123",
+                "New",
+                "User",
+                null,
+                "Nurse",
+                null,
+                null,
+                null)));
 
-        Assert.That(result.Status, Is.EqualTo(UserOperationStatus.Conflict));
-        Assert.That(result.Value, Is.Null);
         Assert.That(await dbContext.Users.CountAsync(), Is.EqualTo(1));
     }
 
     [Test]
-    public async Task CreateHospitalUserAsync_WhenCurrentUserNotHospitalAdmin_ReturnsForbidden()
+    public async Task CreateHospitalUserAsync_WhenCurrentUserNotHospitalAdmin_ThrowsForbiddenException()
     {
         await using var dbContext = CreateDbContext();
         var hospitalId = Guid.NewGuid();
@@ -122,27 +119,23 @@ public sealed class UsersServiceTests
 
         var service = CreateService(dbContext, Guid.NewGuid(), hospitalId, Role.Doctor);
 
-        var result = await service.CreateHospitalUserAsync(CreateValidRequest());
-
-        Assert.That(result.Status, Is.EqualTo(UserOperationStatus.Forbidden));
-        Assert.That(result.Value, Is.Null);
+        Assert.ThrowsAsync<ForbiddenException>(async () =>
+            await service.CreateHospitalUserAsync(CreateValidRequest()));
     }
 
     [Test]
-    public async Task CreateHospitalUserAsync_WhenHospitalDoesNotExist_ReturnsNotFound()
+    public async Task CreateHospitalUserAsync_WhenHospitalDoesNotExist_ThrowsNotFoundException()
     {
         await using var dbContext = CreateDbContext();
         var hospitalId = Guid.NewGuid();
         var service = CreateService(dbContext, Guid.NewGuid(), hospitalId, Role.HospitalAdmin);
 
-        var result = await service.CreateHospitalUserAsync(CreateValidRequest());
-
-        Assert.That(result.Status, Is.EqualTo(UserOperationStatus.NotFound));
-        Assert.That(result.Value, Is.Null);
+        Assert.ThrowsAsync<NotFoundException>(async () =>
+            await service.CreateHospitalUserAsync(CreateValidRequest()));
     }
 
     [Test]
-    public async Task CreateHospitalUserAsync_WhenHospitalInactive_ReturnsValidationError()
+    public async Task CreateHospitalUserAsync_WhenHospitalInactive_ThrowsBusinessRuleException()
     {
         await using var dbContext = CreateDbContext();
         var hospitalId = Guid.NewGuid();
@@ -151,14 +144,12 @@ public sealed class UsersServiceTests
 
         var service = CreateService(dbContext, Guid.NewGuid(), hospitalId, Role.HospitalAdmin);
 
-        var result = await service.CreateHospitalUserAsync(CreateValidRequest());
-
-        Assert.That(result.Status, Is.EqualTo(UserOperationStatus.InvalidHospital));
-        Assert.That(result.Value, Is.Null);
+        Assert.ThrowsAsync<BusinessRuleException>(async () =>
+            await service.CreateHospitalUserAsync(CreateValidRequest()));
     }
 
     [Test]
-    public async Task CreateHospitalUserAsync_WhenUsernameExists_ReturnsConflict()
+    public async Task CreateHospitalUserAsync_WhenUsernameExists_ThrowsConflictException()
     {
         await using var dbContext = CreateDbContext();
         var hospitalId = Guid.NewGuid();
@@ -183,25 +174,22 @@ public sealed class UsersServiceTests
 
         var service = CreateService(dbContext, Guid.NewGuid(), hospitalId, Role.HospitalAdmin);
 
-        var result = await service.CreateHospitalUserAsync(CreateValidRequest(
-            username: "Existing.User",
-            email: "new.user@test.com"));
+        Assert.ThrowsAsync<ConflictException>(async () =>
+            await service.CreateHospitalUserAsync(CreateValidRequest(
+                username: "Existing.User",
+                email: "new.user@test.com")));
 
-        Assert.That(result.Status, Is.EqualTo(UserOperationStatus.Conflict));
-        Assert.That(result.Value, Is.Null);
         Assert.That(await dbContext.Users.CountAsync(), Is.EqualTo(1));
     }
 
     [Test]
-    public async Task CreateHospitalUserAsync_WhenHospitalClaimMissing_ReturnsUnauthorized()
+    public async Task CreateHospitalUserAsync_WhenHospitalClaimMissing_ThrowsForbiddenException()
     {
         await using var dbContext = CreateDbContext();
         var service = CreateService(dbContext, Guid.NewGuid(), hospitalId: null, Role.HospitalAdmin);
 
-        var result = await service.CreateHospitalUserAsync(CreateValidRequest());
-
-        Assert.That(result.Status, Is.EqualTo(UserOperationStatus.Unauthorized));
-        Assert.That(result.Value, Is.Null);
+        Assert.ThrowsAsync<ForbiddenException>(async () =>
+            await service.CreateHospitalUserAsync(CreateValidRequest()));
     }
 
     private static UsersService CreateService(

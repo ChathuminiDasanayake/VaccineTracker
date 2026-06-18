@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using VaccineTracker.Application.Interfaces;
-using VaccineTracker.Application.Users;
 using VaccineTracker.Contracts.Users;
 using VaccineTracker.Domain.Entities;
 using VaccineTracker.Domain.Enums;
 using VaccineTracker.Infrastructure.Authentication;
 using VaccineTracker.Infrastructure.Persistence;
 using Microsoft.Extensions.Logging;
+using VaccineTracker.Application.Exceptions;
 
 namespace VaccineTracker.Infrastructure.Services;
 
@@ -46,24 +46,18 @@ public sealed class UsersService : IUsersService
         _logger = logger;
     }
 
-    public async Task<UserOperationResult<UserResponse>> GetUserAsync(
+    public async Task<UserResponse> GetUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting user {UserId}.", userId);
 
         var user = await GetManageableUserAsync(userId, cancellationToken);
-        if (user.Status != UserOperationStatus.Success)
-        {
-            _logger.LogWarning("Get user {UserId} failed with status {Status}.", userId, user.Status);
-        }
 
-        return user.Status == UserOperationStatus.Success && user.Value is not null
-            ? new UserOperationResult<UserResponse>(UserOperationStatus.Success, ToResponse(user.Value))
-            : new UserOperationResult<UserResponse>(user.Status);
+        return ToResponse(user);
     }
 
-    public async Task<UserOperationResult<UserResponse>> CreateHospitalUserAsync(
+    public async Task<UserResponse> CreateHospitalUserAsync(
         CreateHospitalUserRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -93,20 +87,19 @@ public sealed class UsersService : IUsersService
         var hospitalId = ResolveHospitalId(request.HospitalId);
         if (!IsPlatformAdmin() && !hospitalId.HasValue)
         {
-            _logger.LogWarning("User creation failed because current user has no hospital claim.");
-            return new UserOperationResult<UserResponse>(UserOperationStatus.Unauthorized);
+            throw new ForbiddenException(
+                "Your account is not associated with a hospital.");
         }
 
         if (!hospitalId.HasValue)
         {
-            _logger.LogWarning("User creation failed because hospital id was not provided.");
-            return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidHospital);
+            throw new ValidationException("Hospital ID is required.");
         }
 
         if (!CanAccessHospital(hospitalId.Value))
         {
-            _logger.LogWarning("User creation failed because current user cannot access hospital {HospitalId}.", hospitalId.Value);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.Forbidden);
+            throw new ForbiddenException(
+                $"You cannot access hospital '{hospitalId.Value}'.");
         }
 
         _logger.LogInformation("Creating user with username {Username} for hospital {HospitalId}.", request.Username, hospitalId.Value);
@@ -167,18 +160,18 @@ public sealed class UsersService : IUsersService
 
         _logger.LogInformation("User {UserId} created successfully.", user.Id);
 
-        return new UserOperationResult<UserResponse>(UserOperationStatus.Success, ToResponse(user));
+        return ToResponse(user);
     }
 
-    public async Task<UserOperationResult<UserResponse>> AssignRoleAsync(
+    public async Task<UserResponse> AssignRoleAsync(
         Guid userId,
         AssignUserRoleRequest request,
         CancellationToken cancellationToken = default)
     {
         if (!TryParseRole(request.Role, out var role))
         {
-            _logger.LogWarning("Assign role failed for user {UserId} because role {Role} is invalid.", userId, request.Role);
-            return new UserOperationResult<UserResponse>(UserOperationStatus.InvalidRole);
+            throw new ValidationException(
+                $"Role '{request.Role}' is invalid.");
         }
 
         if (!CanManageHospitalUsers())
@@ -190,41 +183,30 @@ public sealed class UsersService : IUsersService
         if (!CanAssignRole(role))
         {
             throw new ForbiddenException(
-        $"Assign role failed for user {userId} because current user cannot assign role {role}");
+                $"You cannot assign the role '{role}'.");
         }
 
         var user = await GetManageableUserAsync(userId, cancellationToken);
-        if (user.Status == UserOperationStatus.NotFound || user.Value is null)
-        {
-            _logger.LogWarning("Assign role failed for user {UserId} with status {Status}.", userId, user.Status);
-            return new UserOperationResult<UserResponse>(user.Status);
-        }
 
-        if (user.Status == UserOperationStatus.Forbidden)
-        {
-            _logger.LogWarning("Assign role failed for user {UserId} with status {Status}.", userId, user.Status);
-            return new UserOperationResult<UserResponse>(user.Status);
-        }
-
-        user.Value.Roles = [role];
-        user.Value.UpdatedAt = DateTime.UtcNow;
-        user.Value.UpdatedBy = _currentUser.UserId.ToString();
+        user.Roles = [role];
+        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedBy = _currentUser.UserId.ToString();
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Role {Role} assigned to user {UserId}.", role, userId);
 
-        return new UserOperationResult<UserResponse>(UserOperationStatus.Success, ToResponse(user.Value));
+        return ToResponse(user);
     }
 
-    public async Task<UserOperationResult<UserResponse>> ActivateUserAsync(
+    public async Task<UserResponse> ActivateUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
         return await SetUserStatusAsync(userId, EntityStatus.Active, cancellationToken);
     }
 
-    public async Task<UserOperationResult<UserResponse>> DeactivateUserAsync(
+    public async Task<UserResponse> DeactivateUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
@@ -237,7 +219,7 @@ public sealed class UsersService : IUsersService
         return await SetUserStatusAsync(userId, EntityStatus.Inactive, cancellationToken);
     }
 
-    private async Task<UserOperationResult<User>> GetManageableUserAsync(
+    private async Task<User> GetManageableUserAsync(
         Guid userId,
         CancellationToken cancellationToken)
     {
@@ -249,32 +231,31 @@ public sealed class UsersService : IUsersService
             throw new NotFoundException("User", userId);
         }
 
-        return user.HospitalId.HasValue && CanAccessHospital(user.HospitalId.Value)
-            ? new UserOperationResult<User>(UserOperationStatus.Success, user)
-            : new UserOperationResult<User>(UserOperationStatus.Forbidden);
+        if (!user.HospitalId.HasValue || !CanAccessHospital(user.HospitalId.Value))
+        {
+            throw new ForbiddenException(
+                $"You cannot access user '{userId}'.");
+        }
+
+        return user;
     }
 
-    private async Task<UserOperationResult<UserResponse>> SetUserStatusAsync(
+    private async Task<UserResponse> SetUserStatusAsync(
         Guid userId,
         EntityStatus status,
         CancellationToken cancellationToken)
     {
         var user = await GetManageableUserAsync(userId, cancellationToken);
-        if (user.Status != UserOperationStatus.Success || user.Value is null)
-        {
-            _logger.LogWarning("Set user {UserId} status to {Status} failed with result {Result}.", userId, status, user.Status);
-            return new UserOperationResult<UserResponse>(user.Status);
-        }
 
-        user.Value.Status = status;
-        user.Value.UpdatedAt = DateTime.UtcNow;
-        user.Value.UpdatedBy = _currentUser.UserId.ToString();
+        user.Status = status;
+        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedBy = _currentUser.UserId.ToString();
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} status changed to {Status}.", userId, status);
 
-        return new UserOperationResult<UserResponse>(UserOperationStatus.Success, ToResponse(user.Value));
+        return ToResponse(user);
     }
 
     private Guid? ResolveHospitalId(Guid? requestedHospitalId)
