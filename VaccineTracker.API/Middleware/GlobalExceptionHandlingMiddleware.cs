@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using VaccineTracker.API.Middleware;
 using VaccineTracker.Application.Exceptions;
 
 public sealed class GlobalExceptionHandlingMiddleware
@@ -50,8 +51,11 @@ public sealed class GlobalExceptionHandlingMiddleware
             {
                 Status = statusCode,
                 Title = title,
-                Detail = detail
+                Detail = detail,
+                Instance = context.Request.Path
             };
+
+            problem.Extensions["correlationId"] = context.TraceIdentifier;
 
             if (exception is ValidationException
                 or ForbiddenException
@@ -66,7 +70,7 @@ public sealed class GlobalExceptionHandlingMiddleware
                 _logger.LogError(exception, "Unhandled exception occurred.");
             }
             context.Response.StatusCode = statusCode;
-            context.Response.ContentType = "application/json";
+            context.Response.ContentType = "application/problem+json";
 
             await context.Response.WriteAsJsonAsync(problem);
         }
