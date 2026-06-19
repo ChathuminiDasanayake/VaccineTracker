@@ -151,7 +151,26 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseSerilogRequestLogging();
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set(
+            "CorrelationId",
+            httpContext.TraceIdentifier);
+
+        diagnosticContext.Set(
+            "UserId",
+            httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+
+        diagnosticContext.Set(
+            "ClientIp",
+            httpContext.Connection.RemoteIpAddress?.ToString());
+    };
+});
 
 app.UseRouting();
 app.UseRateLimiter();
