@@ -16,6 +16,7 @@ using VaccineTracker.Domain.Enums;
 using VaccineTracker.Infrastructure.Authentication;
 using VaccineTracker.Infrastructure.Persistence;
 using VaccineTracker.Infrastructure.Services;
+using VaccineTracker.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -139,6 +140,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 var app = builder.Build();
 
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.
