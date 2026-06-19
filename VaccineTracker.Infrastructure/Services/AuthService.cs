@@ -20,17 +20,20 @@ public sealed class AuthService : IAuthService
     private readonly IPasswordHashService _passwordHashService;
     private readonly JwtSettings _jwtSettings;
     private readonly ILogger<AuthService> _logger;
+    private readonly ILoginAuditService _loginAuditService;
 
     public AuthService(
         VaccineTrackerDbContext dbContext,
         IPasswordHashService passwordHashService,
         IOptions<JwtSettings> jwtSettings,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        ILoginAuditService loginAuditService)
     {
         _dbContext = dbContext;
         _passwordHashService = passwordHashService;
         _jwtSettings = jwtSettings.Value;
         _logger = logger;
+        _loginAuditService = loginAuditService;
     }
 
     public async Task<LoginResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
@@ -38,7 +41,14 @@ public sealed class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
         {
             _logger.LogWarning("Login failed because username or password was empty.");
+            await _loginAuditService.RecordLoginAsync(
+        userId: null,
+        username: request.Username ?? string.Empty,
+        isSuccessful: false,
+        failureReason: "Empty credentials",
+        cancellationToken);
             return null;
+
         }
 
         var username = request.Username.Trim();
@@ -55,10 +65,23 @@ public sealed class AuthService : IAuthService
         if (user is null || !_passwordHashService.VerifyPassword(request.Password, user.PasswordHash))
         {
             _logger.LogWarning("Login failed for username {Username}.", username);
+            await _loginAuditService.RecordLoginAsync(
+        userId: user?.Id,
+        username: username,
+        isSuccessful: false,
+        failureReason: "Invalid credentials",
+        cancellationToken);
+
             return null;
         }
 
         user.LastLoginAt = DateTime.UtcNow;
+        await _loginAuditService.RecordLoginAsync(
+    userId: user.Id,
+    username: user.Username,
+    isSuccessful: true,
+    failureReason: null,
+    cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var roles = user.Roles.Select(role => role.ToString()).ToArray();

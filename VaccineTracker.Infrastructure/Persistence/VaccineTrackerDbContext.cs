@@ -15,6 +15,7 @@ public sealed class VaccineTrackerDbContext : DbContext
     public DbSet<Hospital> Hospitals => Set<Hospital>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Location> Locations => Set<Location>();
+    public DbSet<LoginAudit> LoginAudits => Set<LoginAudit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,6 +38,19 @@ public sealed class VaccineTrackerDbContext : DbContext
             entity.HasIndex(user => user.NormalizedEmail)
                 .IsUnique()
                 .HasFilter("[IsDeleted] = 0");
+        });
+
+        modelBuilder.Entity<LoginAudit>(entity =>
+        {
+            entity.Property(x => x.Username).HasMaxLength(100);
+            entity.Property(x => x.FailureReason).HasMaxLength(200);
+            entity.Property(x => x.IpAddress).HasMaxLength(45);
+            entity.Property(x => x.UserAgent).HasMaxLength(500);
+            entity.Property(x => x.CorrelationId).HasMaxLength(100);
+
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.AttemptedAtUtc);
+            entity.HasIndex(x => x.CorrelationId);
         });
     }
 }

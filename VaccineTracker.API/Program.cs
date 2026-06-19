@@ -17,6 +17,7 @@ using VaccineTracker.Infrastructure.Authentication;
 using VaccineTracker.Infrastructure.Persistence;
 using VaccineTracker.Infrastructure.Services;
 using VaccineTracker.API.Middleware;
+using VaccineTracker.API;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -101,6 +102,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IHospitalsService, HospitalsService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
+builder.Services.AddScoped<IRequestContext, RequestContext>();
+builder.Services.AddScoped<ILoginAuditService, LoginAuditService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

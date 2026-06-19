@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using VaccineTracker.Application.Interfaces;
 using VaccineTracker.Domain.Entities;
 using VaccineTracker.Domain.Enums;
 using VaccineTracker.Contracts.Auth;
@@ -49,7 +50,11 @@ public sealed class AuthServiceTests
             dbContext,
             passwordHashService,
             Options.Create(CreateJwtSettings()),
-            NullLogger<AuthService>.Instance);
+            NullLogger<AuthService>.Instance,
+            new LoginAuditService(
+                dbContext,
+                new TestRequestContext(),
+                new TestCurrentUser()));
 
         var response = await service.LoginAsync(new LoginRequest(" doctor.one ", "Password@123"));
 
@@ -65,6 +70,18 @@ public sealed class AuthServiceTests
 
         var updatedUser = await dbContext.Users.SingleAsync(user => user.Id == userId);
         Assert.That(updatedUser.LastLoginAt, Is.Not.Null);
+
+        var audit = await dbContext.LoginAudits.SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(audit.UserId, Is.EqualTo(userId));
+            Assert.That(audit.Username, Is.EqualTo("doctor.one"));
+            Assert.That(audit.IsSuccessful, Is.True);
+            Assert.That(audit.FailureReason, Is.Null);
+            Assert.That(audit.CorrelationId, Is.EqualTo("test-correlation-id"));
+            Assert.That(audit.IpAddress, Is.EqualTo("127.0.0.1"));
+            Assert.That(audit.UserAgent, Is.EqualTo("VaccineTracker.UnitTests"));
+        });
     }
 
     private static VaccineTrackerDbContext CreateDbContext()
@@ -85,5 +102,25 @@ public sealed class AuthServiceTests
             Secret = "test-secret-key-with-at-least-32-characters",
             ExpiryMinutes = 60
         };
+    }
+
+    private sealed class TestRequestContext : IRequestContext
+    {
+        public string CorrelationId => "test-correlation-id";
+
+        public string? IpAddress => "127.0.0.1";
+
+        public string? UserAgent => "VaccineTracker.UnitTests";
+    }
+
+    private sealed class TestCurrentUser : ICurrentUser
+    {
+        public Guid UserId => Guid.Empty;
+
+        public Guid? HospitalId => null;
+
+        public string Email => string.Empty;
+
+        public string Role => string.Empty;
     }
 }
