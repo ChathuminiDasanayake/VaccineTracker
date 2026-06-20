@@ -34,9 +34,12 @@ var jwtSettings = builder.Configuration
 
 if (string.IsNullOrWhiteSpace(jwtSettings.Issuer) ||
     string.IsNullOrWhiteSpace(jwtSettings.Audience) ||
-    string.IsNullOrWhiteSpace(jwtSettings.Secret))
+    string.IsNullOrWhiteSpace(jwtSettings.Secret) ||
+    Encoding.UTF8.GetByteCount(jwtSettings.Secret) < 32 ||
+    jwtSettings.ExpiryMinutes <= 0)
 {
-    throw new InvalidOperationException("Jwt settings must include Issuer, Audience, and Secret.");
+    throw new InvalidOperationException(
+        "Jwt settings must include Issuer, Audience, a secret of at least 32 bytes, and a positive expiry.");
 }
 
 builder.Services

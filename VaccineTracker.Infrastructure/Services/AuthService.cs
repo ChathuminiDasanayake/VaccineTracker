@@ -42,13 +42,13 @@ public sealed class AuthService : IAuthService
         {
             _logger.LogWarning("Login failed because username or password was empty.");
             await _loginAuditService.RecordLoginAsync(
-        userId: null,
-        username: request.Username ?? string.Empty,
-        isSuccessful: false,
-        failureReason: "Empty credentials",
-        cancellationToken);
-            return null;
+                userId: null,
+                username: request.Username ?? string.Empty,
+                isSuccessful: false,
+                failureReason: "Empty credentials",
+                cancellationToken);
 
+            return null;
         }
 
         var username = request.Username.Trim();
@@ -66,27 +66,26 @@ public sealed class AuthService : IAuthService
         {
             _logger.LogWarning("Login failed for username {Username}.", username);
             await _loginAuditService.RecordLoginAsync(
-        userId: user?.Id,
-        username: username,
-        isSuccessful: false,
-        failureReason: "Invalid credentials",
-        cancellationToken);
+                userId: user?.Id,
+                username: username,
+                isSuccessful: false,
+                failureReason: "Invalid credentials",
+                cancellationToken);
 
             return null;
         }
 
-        user.LastLoginAt = DateTime.UtcNow;
-        await _loginAuditService.RecordLoginAsync(
-    userId: user.Id,
-    username: user.Username,
-    isSuccessful: true,
-    failureReason: null,
-    cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
         var roles = user.Roles.Select(role => role.ToString()).ToArray();
         var expiresAtUtc = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes);
         var token = GenerateToken(user.Id, user.Username, user.Email, roles, user.HospitalId, expiresAtUtc);
+
+        user.LastLoginAt = DateTime.UtcNow;
+        await _loginAuditService.RecordLoginAsync(
+            userId: user.Id,
+            username: user.Username,
+            isSuccessful: true,
+            failureReason: null,
+            cancellationToken);
 
         _logger.LogInformation("Login succeeded for user {UserId}.", user.Id);
 

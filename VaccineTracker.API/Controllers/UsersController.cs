@@ -81,11 +81,4 @@ public sealed class UsersController : ControllerBase
 
         return Ok(user);
     }
-
-    [AllowAnonymous]
-    [HttpGet("throw")]
-    public IActionResult Throw()
-    {
-        throw new InvalidOperationException("Test global exception");
-    }
 }

@@ -9,7 +9,14 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<VaccineTra
     {
         var optionsBuilder = new DbContextOptionsBuilder<VaccineTrackerDbContext>();
 
-        var connectionString = "Server=localhost;Database=VaccineDb;User Id=sa;Password=123;TrustServerCertificate=True;";
+        var connectionString = Environment.GetEnvironmentVariable(
+            "ConnectionStrings__DefaultConnection");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Set the ConnectionStrings__DefaultConnection environment variable before running EF Core commands.");
+        }
 
         optionsBuilder.UseSqlServer(connectionString);
 

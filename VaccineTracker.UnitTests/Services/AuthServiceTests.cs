@@ -53,8 +53,7 @@ public sealed class AuthServiceTests
             NullLogger<AuthService>.Instance,
             new LoginAuditService(
                 dbContext,
-                new TestRequestContext(),
-                new TestCurrentUser()));
+                new TestRequestContext()));
 
         var response = await service.LoginAsync(new LoginRequest(" doctor.one ", "Password@123"));
 
@@ -113,14 +112,4 @@ public sealed class AuthServiceTests
         public string? UserAgent => "VaccineTracker.UnitTests";
     }
 
-    private sealed class TestCurrentUser : ICurrentUser
-    {
-        public Guid UserId => Guid.Empty;
-
-        public Guid? HospitalId => null;
-
-        public string Email => string.Empty;
-
-        public string Role => string.Empty;
-    }
 }
