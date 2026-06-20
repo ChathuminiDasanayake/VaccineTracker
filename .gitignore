@@ -2,3 +2,11 @@ bin/
 obj/
 .vs/
 artifacts/
+
+# Runtime logs
+VaccineTracker.API/Logs/
+*.log
+
+# Test results and coverage
+**/TestResults/
+*.cobertura.xml
