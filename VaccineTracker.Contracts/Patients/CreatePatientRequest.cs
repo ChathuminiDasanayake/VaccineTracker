@@ -1,0 +1,40 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace VaccineTracker.Contracts.Patients;
+
+public sealed record CreatePatientRequest(
+    Guid? HospitalId,
+    [property: Required]
+    [property: MaxLength(50)]
+    string PatientNumber,
+    [property: Required]
+    [property: MaxLength(100)]
+    string FirstName,
+    [property: Required]
+    [property: MaxLength(100)]
+    string LastName,
+    DateOnly DateOfBirth,
+    [property: Required]
+    string Gender,
+    [property: MaxLength(100)]
+    string? NationalIdNumber,
+    [property: EmailAddress]
+    [property: MaxLength(254)]
+    string? Email,
+    [property: Phone]
+    [property: MaxLength(30)]
+    string? PhoneNumber,
+    [property: MaxLength(300)]
+    string? StreetAddress,
+    [property: MaxLength(100)]
+    string? City,
+    [property: MaxLength(20)]
+    string? PostalCode,
+    [property: MaxLength(100)]
+    string? Country,
+    [property: MaxLength(200)]
+    string? EmergencyContactName,
+    [property: Phone]
+    [property: MaxLength(30)]
+    string? EmergencyContactPhone,
+    bool IsEmployee);

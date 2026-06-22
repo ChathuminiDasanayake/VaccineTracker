@@ -76,7 +76,6 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(AuthorizationPolicies.HospitalStaff, policy =>
         policy.RequireRole(
-            Role.PlatformAdmin.ToString(),
             Role.HospitalAdmin.ToString(),
             Role.Doctor.ToString(),
             Role.Nurse.ToString(),
@@ -105,6 +104,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IHospitalsService, HospitalsService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
+builder.Services.AddScoped<IPatientsService, PatientsService>();
 builder.Services.AddScoped<IRequestContext, RequestContext>();
 builder.Services.AddScoped<ILoginAuditService, LoginAuditService>();
 

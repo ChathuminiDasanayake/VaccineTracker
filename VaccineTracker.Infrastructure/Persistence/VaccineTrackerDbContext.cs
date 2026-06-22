@@ -16,6 +16,7 @@ public sealed class VaccineTrackerDbContext : DbContext
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<LoginAudit> LoginAudits => Set<LoginAudit>();
+    public DbSet<Patient> Patients => Set<Patient>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,6 +52,58 @@ public sealed class VaccineTrackerDbContext : DbContext
             entity.HasIndex(x => x.UserId);
             entity.HasIndex(x => x.AttemptedAtUtc);
             entity.HasIndex(x => x.CorrelationId);
+        });
+
+        modelBuilder.Entity<Patient>(entity =>
+        {
+            entity.Property(patient => patient.PatientNumber)
+                .HasMaxLength(50);
+
+            entity.Property(patient => patient.FirstName)
+                .HasMaxLength(100);
+
+            entity.Property(patient => patient.LastName)
+                .HasMaxLength(100);
+
+            entity.Property(patient => patient.NationalIdNumber)
+                .HasMaxLength(100);
+
+            entity.Property(patient => patient.Email)
+                .HasMaxLength(254);
+
+            entity.Property(patient => patient.PhoneNumber)
+                .HasMaxLength(30);
+
+            entity.Property(patient => patient.StreetAddress)
+                .HasMaxLength(300);
+
+            entity.Property(patient => patient.City)
+                .HasMaxLength(100);
+
+            entity.Property(patient => patient.PostalCode)
+                .HasMaxLength(20);
+
+            entity.Property(patient => patient.Country)
+                .HasMaxLength(100);
+
+            entity.Property(patient => patient.EmergencyContactName)
+                .HasMaxLength(200);
+
+            entity.Property(patient => patient.EmergencyContactPhone)
+                .HasMaxLength(30);
+
+            entity.HasIndex(patient => new
+                {
+                    patient.HospitalId,
+                    patient.PatientNumber
+                })
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+
+            entity.HasOne(patient => patient.Hospital)
+                .WithMany()
+                .HasForeignKey(patient => patient.HospitalId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
