@@ -25,7 +25,7 @@ public sealed class PatientsServiceTests
             Role.HospitalAdmin);
 
         var result = await service.CreatePatientAsync(
-            CreateRequest(hospitalId: null));
+            CreateRequest());
 
         Assert.Multiple(() =>
         {
@@ -66,7 +66,7 @@ public sealed class PatientsServiceTests
             Role.HospitalAdmin);
 
         Assert.ThrowsAsync<ConflictException>(async () =>
-            await service.CreatePatientAsync(CreateRequest(hospitalId: null)));
+            await service.CreatePatientAsync(CreateRequest()));
     }
 
     [Test]
@@ -239,10 +239,9 @@ public sealed class PatientsServiceTests
             NullLogger<PatientsService>.Instance);
     }
 
-    private static CreatePatientRequest CreateRequest(Guid? hospitalId)
+    private static CreatePatientRequest CreateRequest()
     {
         return new CreatePatientRequest(
-            hospitalId,
             "PAT-001",
             "Jane",
             "Doe",
