@@ -4,6 +4,9 @@ namespace VaccineTracker.Application.Interfaces;
 
 public interface IPatientsService
 {
+    Task<IReadOnlyList<PatientSummaryResponse>> GetPatientsAsync(
+        CancellationToken cancellationToken = default);
+
     Task<PatientSummaryResponse> GetPatientAsync(
         Guid patientId,
         CancellationToken cancellationToken = default);

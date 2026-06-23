@@ -25,6 +25,50 @@ public sealed class PatientsService : IPatientsService
         _logger = logger;
     }
 
+    public async Task<IReadOnlyList<PatientSummaryResponse>> GetPatientsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var hospitalId = ResolveHospitalId();
+
+        if (!hospitalId.HasValue)
+        {
+            throw new ForbiddenException("Hospital access is required.");
+        }
+
+        EnsureHospitalAccess(hospitalId.Value);
+
+        var patients = await _dbContext.Patients
+            .AsNoTracking()
+            .Where(patient =>
+                patient.HospitalId == hospitalId.Value &&
+                !patient.IsDeleted)
+            .OrderBy(patient => patient.LastName)
+            .ThenBy(patient => patient.FirstName)
+            .ThenBy(patient => patient.Id)
+            .Select(patient => new
+            {
+                patient.Id,
+                patient.PatientNumber,
+                patient.FirstName,
+                patient.LastName,
+                patient.DateOfBirth,
+                patient.Gender,
+                patient.Status
+            })
+            .ToListAsync(cancellationToken);
+
+        return patients
+            .Select(patient => new PatientSummaryResponse(
+                patient.Id,
+                patient.PatientNumber,
+                patient.FirstName,
+                patient.LastName,
+                patient.DateOfBirth,
+                patient.Gender.ToString(),
+                patient.Status.ToString()))
+            .ToList();
+    }
+
     public async Task<PatientSummaryResponse> GetPatientAsync(
         Guid patientId,
         CancellationToken cancellationToken = default)

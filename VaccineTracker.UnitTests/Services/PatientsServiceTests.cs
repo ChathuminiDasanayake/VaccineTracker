@@ -70,6 +70,57 @@ public sealed class PatientsServiceTests
     }
 
     [Test]
+    public async Task GetPatientsAsync_ReturnsOnlyCurrentHospitalsActiveRecords()
+    {
+        await using var dbContext = CreateDbContext();
+        var currentHospitalId = Guid.NewGuid();
+        var otherHospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, currentHospitalId);
+        await AddHospitalAsync(dbContext, otherHospitalId);
+
+        dbContext.Patients.AddRange(
+            new Patient
+            {
+                HospitalId = currentHospitalId,
+                PatientNumber = "PAT-OWN",
+                FirstName = "Current",
+                LastName = "Hospital",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Gender = Gender.Female
+            },
+            new Patient
+            {
+                HospitalId = otherHospitalId,
+                PatientNumber = "PAT-OTHER",
+                FirstName = "Other",
+                LastName = "Hospital",
+                DateOfBirth = new DateOnly(1991, 1, 1),
+                Gender = Gender.Male
+            },
+            new Patient
+            {
+                HospitalId = currentHospitalId,
+                PatientNumber = "PAT-DELETED",
+                FirstName = "Deleted",
+                LastName = "Patient",
+                DateOfBirth = new DateOnly(1992, 1, 1),
+                Gender = Gender.Other,
+                IsDeleted = true
+            });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            currentHospitalId,
+            Role.Staff);
+
+        var result = await service.GetPatientsAsync();
+
+        Assert.That(result, Has.Count.EqualTo(1));
+        Assert.That(result[0].PatientNumber, Is.EqualTo("PAT-OWN"));
+    }
+
+    [Test]
     public async Task GetPatientAsync_FromAnotherHospital_ThrowsForbiddenException()
     {
         await using var dbContext = CreateDbContext();
