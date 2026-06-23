@@ -29,7 +29,9 @@ public sealed class PatientsServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.PatientNumber, Is.EqualTo("PAT-001"));
+            Assert.That(
+                result.PatientNumber,
+                Does.Match(@"^PT-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$"));
             Assert.That(result.Gender, Is.EqualTo("Female"));
             Assert.That(result.Status, Is.EqualTo("Active"));
         });
@@ -43,30 +45,21 @@ public sealed class PatientsServiceTests
     }
 
     [Test]
-    public async Task CreatePatientAsync_WhenPatientNumberExists_ThrowsConflictException()
+    public async Task CreatePatientAsync_Twice_GeneratesDifferentPatientNumbers()
     {
         await using var dbContext = CreateDbContext();
         var hospitalId = Guid.NewGuid();
         await AddHospitalAsync(dbContext, hospitalId);
-
-        dbContext.Patients.Add(new Patient
-        {
-            HospitalId = hospitalId,
-            PatientNumber = "PAT-001",
-            FirstName = "Existing",
-            LastName = "Patient",
-            DateOfBirth = new DateOnly(1990, 1, 1),
-            Gender = Gender.Female
-        });
-        await dbContext.SaveChangesAsync();
 
         var service = CreateService(
             dbContext,
             hospitalId,
             Role.HospitalAdmin);
 
-        Assert.ThrowsAsync<ConflictException>(async () =>
-            await service.CreatePatientAsync(CreateRequest()));
+        var first = await service.CreatePatientAsync(CreateRequest());
+        var second = await service.CreatePatientAsync(CreateRequest());
+
+        Assert.That(second.PatientNumber, Is.Not.EqualTo(first.PatientNumber));
     }
 
     [Test]
@@ -242,7 +235,6 @@ public sealed class PatientsServiceTests
     private static CreatePatientRequest CreateRequest()
     {
         return new CreatePatientRequest(
-            "PAT-001",
             "Jane",
             "Doe",
             new DateOnly(1995, 6, 15),

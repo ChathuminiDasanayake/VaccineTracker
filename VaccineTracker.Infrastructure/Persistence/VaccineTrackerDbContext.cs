@@ -92,13 +92,8 @@ public sealed class VaccineTrackerDbContext : DbContext
             entity.Property(patient => patient.EmergencyContactPhone)
                 .HasMaxLength(30);
 
-            entity.HasIndex(patient => new
-                {
-                    patient.HospitalId,
-                    patient.PatientNumber
-                })
-                .IsUnique()
-                .HasFilter("[IsDeleted] = 0");
+            entity.HasIndex(patient => patient.PatientNumber)
+                .IsUnique();
 
             entity.HasOne(patient => patient.Hospital)
                 .WithMany()

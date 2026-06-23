@@ -6,6 +6,7 @@ using VaccineTracker.Contracts.Patients;
 using VaccineTracker.Domain.Entities;
 using VaccineTracker.Domain.Enums;
 using VaccineTracker.Infrastructure.Persistence;
+using System.Security.Cryptography;
 
 namespace VaccineTracker.Infrastructure.Services;
 
@@ -14,6 +15,9 @@ public sealed class PatientsService : IPatientsService
     private readonly VaccineTrackerDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
     private readonly ILogger<PatientsService> _logger;
+
+    private const string PatientNumberCharacters =
+        "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
     public PatientsService(
         VaccineTrackerDbContext dbContext,
@@ -127,19 +131,8 @@ public sealed class PatientsService : IPatientsService
             throw new NotFoundException("Active hospital", hospitalId.Value);
         }
 
-        var patientNumber = request.PatientNumber.Trim();
-        var patientNumberExists = await _dbContext.Patients
-            .AnyAsync(
-                patient => patient.HospitalId == hospitalId.Value &&
-                    patient.PatientNumber == patientNumber &&
-                    !patient.IsDeleted,
-                cancellationToken);
-
-        if (patientNumberExists)
-        {
-            throw new ConflictException(
-                $"Patient number '{patientNumber}' already exists in this hospital.");
-        }
+        var patientNumber = await GenerateUniquePatientNumberAsync(
+            cancellationToken);
 
         var patient = new Patient
         {
@@ -289,5 +282,43 @@ public sealed class PatientsService : IPatientsService
             patient.Status.ToString(),
             patient.CreatedAt,
             patient.UpdatedAt);
+    }
+
+    private async Task<string> GenerateUniquePatientNumberAsync(
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var patientNumber = GeneratePatientNumber();
+            var exists = await _dbContext.Patients
+                .AnyAsync(
+                    patient => patient.PatientNumber == patientNumber,
+                    cancellationToken);
+
+            if (!exists)
+            {
+                return patientNumber;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Unable to generate a unique patient number.");
+    }
+
+    private static string GeneratePatientNumber()
+    {
+        Span<char> characters = stackalloc char[8];
+
+        for (var index = 0; index < characters.Length; index++)
+        {
+            characters[index] =
+                PatientNumberCharacters[
+                    RandomNumberGenerator.GetInt32(
+                        PatientNumberCharacters.Length)];
+        }
+
+        var value = new string(characters);
+
+        return $"PT-{value[..4]}-{value[4..]}";
     }
 }

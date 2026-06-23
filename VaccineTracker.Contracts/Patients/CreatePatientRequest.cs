@@ -4,9 +4,6 @@ namespace VaccineTracker.Contracts.Patients;
 
 public sealed record CreatePatientRequest(
     [Required]
-    [MaxLength(50)]
-    string PatientNumber,
-    [Required]
     [MaxLength(100)]
     string FirstName,
     [Required]
