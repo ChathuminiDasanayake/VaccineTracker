@@ -29,14 +29,17 @@ public sealed class PatientsServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.HospitalId, Is.EqualTo(hospitalId));
             Assert.That(result.PatientNumber, Is.EqualTo("PAT-001"));
             Assert.That(result.Gender, Is.EqualTo("Female"));
             Assert.That(result.Status, Is.EqualTo("Active"));
         });
 
         var patient = await dbContext.Patients.SingleAsync();
-        Assert.That(patient.CreatedBy, Is.Not.Null.And.Not.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(patient.HospitalId, Is.EqualTo(hospitalId));
+            Assert.That(patient.CreatedBy, Is.Not.Null.And.Not.Empty);
+        });
     }
 
     [Test]
@@ -122,6 +125,56 @@ public sealed class PatientsServiceTests
 
         Assert.ThrowsAsync<ForbiddenException>(async () =>
             await service.GetPatientAsync(patient.Id));
+    }
+
+    [Test]
+    public async Task GetPatientDetailsAsync_ReturnsSensitivePatientData()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        var patient = new Patient
+        {
+            HospitalId = hospitalId,
+            PatientNumber = "PAT-004",
+            FirstName = "Detailed",
+            LastName = "Patient",
+            DateOfBirth = new DateOnly(1992, 8, 20),
+            Gender = Gender.Female,
+            NationalIdNumber = "NAT-004",
+            Email = "patient@test.com"
+        };
+        dbContext.Patients.Add(patient);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.Doctor);
+
+        var result = await service.GetPatientDetailsAsync(patient.Id);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.NationalIdNumber, Is.EqualTo("NAT-004"));
+            Assert.That(result.Email, Is.EqualTo("patient@test.com"));
+        });
+    }
+
+    [Test]
+    public async Task GetPatientDetailsAsync_AsStaff_ThrowsForbiddenException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.Staff);
+
+        Assert.ThrowsAsync<ForbiddenException>(async () =>
+            await service.GetPatientDetailsAsync(Guid.NewGuid()));
     }
 
     private static PatientsService CreateService(

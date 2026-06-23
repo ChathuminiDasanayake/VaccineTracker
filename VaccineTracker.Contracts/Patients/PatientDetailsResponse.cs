@@ -1,6 +1,6 @@
 namespace VaccineTracker.Contracts.Patients;
 
-public sealed record PatientResponse(
+public sealed record PatientDetailsResponse(
     Guid Id,
     Guid HospitalId,
     string PatientNumber,

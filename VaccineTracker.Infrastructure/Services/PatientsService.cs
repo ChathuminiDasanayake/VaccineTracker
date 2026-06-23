@@ -25,27 +25,27 @@ public sealed class PatientsService : IPatientsService
         _logger = logger;
     }
 
-    public async Task<PatientResponse> GetPatientAsync(
+    public async Task<PatientSummaryResponse> GetPatientAsync(
         Guid patientId,
         CancellationToken cancellationToken = default)
     {
-        var patient = await _dbContext.Patients
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                patient => patient.Id == patientId && !patient.IsDeleted,
-                cancellationToken);
+        var patient = await GetPatientEntityAsync(patientId, cancellationToken);
 
-        if (patient is null)
-        {
-            throw new NotFoundException("Patient", patientId);
-        }
-
-        EnsureHospitalAccess(patient.HospitalId);
-
-        return ToResponse(patient);
+        return ToSummaryResponse(patient);
     }
 
-    public async Task<PatientResponse> CreatePatientAsync(
+    public async Task<PatientDetailsResponse> GetPatientDetailsAsync(
+        Guid patientId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureSensitiveDataAccess();
+
+        var patient = await GetPatientEntityAsync(patientId, cancellationToken);
+
+        return ToDetailsResponse(patient);
+    }
+
+    public async Task<PatientSummaryResponse> CreatePatientAsync(
         CreatePatientRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -127,7 +127,7 @@ public sealed class PatientsService : IPatientsService
             patient.Id,
             patient.HospitalId);
 
-        return ToResponse(patient);
+        return ToSummaryResponse(patient);
     }
 
     private Guid? ResolveHospitalId()
@@ -154,6 +154,29 @@ public sealed class PatientsService : IPatientsService
             StringComparison.Ordinal);
     }
 
+    private void EnsureSensitiveDataAccess()
+    {
+        var canViewSensitiveData =
+            string.Equals(
+                _currentUser.Role,
+                Role.HospitalAdmin.ToString(),
+                StringComparison.Ordinal) ||
+            string.Equals(
+                _currentUser.Role,
+                Role.Doctor.ToString(),
+                StringComparison.Ordinal) ||
+            string.Equals(
+                _currentUser.Role,
+                Role.Nurse.ToString(),
+                StringComparison.Ordinal);
+
+        if (!canViewSensitiveData)
+        {
+            throw new ForbiddenException(
+                "You cannot access sensitive patient data.");
+        }
+    }
+
     private static bool TryParseGender(string gender, out Gender value)
     {
         return Enum.TryParse(gender, ignoreCase: true, out value) &&
@@ -167,9 +190,41 @@ public sealed class PatientsService : IPatientsService
             : value.Trim();
     }
 
-    private static PatientResponse ToResponse(Patient patient)
+    private async Task<Patient> GetPatientEntityAsync(
+        Guid patientId,
+        CancellationToken cancellationToken)
     {
-        return new PatientResponse(
+        var patient = await _dbContext.Patients
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                patient => patient.Id == patientId && !patient.IsDeleted,
+                cancellationToken);
+
+        if (patient is null)
+        {
+            throw new NotFoundException("Patient", patientId);
+        }
+
+        EnsureHospitalAccess(patient.HospitalId);
+
+        return patient;
+    }
+
+    private static PatientSummaryResponse ToSummaryResponse(Patient patient)
+    {
+        return new PatientSummaryResponse(
+            patient.Id,
+            patient.PatientNumber,
+            patient.FirstName,
+            patient.LastName,
+            patient.DateOfBirth,
+            patient.Gender.ToString(),
+            patient.Status.ToString());
+    }
+
+    private static PatientDetailsResponse ToDetailsResponse(Patient patient)
+    {
+        return new PatientDetailsResponse(
             patient.Id,
             patient.HospitalId,
             patient.PatientNumber,

@@ -80,6 +80,12 @@ builder.Services.AddAuthorization(options =>
             Role.Doctor.ToString(),
             Role.Nurse.ToString(),
             Role.Staff.ToString()));
+
+    options.AddPolicy(AuthorizationPolicies.ViewPatientSensitiveData, policy =>
+        policy.RequireRole(
+            Role.HospitalAdmin.ToString(),
+            Role.Doctor.ToString(),
+            Role.Nurse.ToString()));
 });
 
 builder.Services.AddRateLimiter(options =>
