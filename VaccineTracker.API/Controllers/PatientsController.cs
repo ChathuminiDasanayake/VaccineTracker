@@ -86,4 +86,23 @@ public sealed class PatientsController : ControllerBase
             new { id = patient.Id },
             patient);
     }
+
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(PatientSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PatientSummaryResponse>> UpdatePatient(
+        Guid id,
+        UpdatePatientRequest request,
+        CancellationToken cancellationToken)
+    {
+        var patient = await _patientsService.UpdatePatientAsync(
+            id,
+            request,
+            cancellationToken);
+
+        return Ok(patient);
+    }
 }

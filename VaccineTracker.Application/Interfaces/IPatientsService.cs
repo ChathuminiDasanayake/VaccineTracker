@@ -18,4 +18,9 @@ public interface IPatientsService
     Task<PatientSummaryResponse> CreatePatientAsync(
         CreatePatientRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<PatientSummaryResponse> UpdatePatientAsync(
+        Guid patientId,
+        UpdatePatientRequest request,
+        CancellationToken cancellationToken = default);
 }

@@ -167,6 +167,62 @@ public sealed class PatientsService : IPatientsService
         return ToSummaryResponse(patient);
     }
 
+    public async Task<PatientSummaryResponse> UpdatePatientAsync(
+        Guid patientId,
+        UpdatePatientRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var patient = await _dbContext.Patients
+            .FirstOrDefaultAsync(
+                patient => patient.Id == patientId && !patient.IsDeleted,
+                cancellationToken);
+
+        if (patient is null)
+        {
+            throw new NotFoundException("Patient", patientId);
+        }
+
+        EnsureHospitalAccess(patient.HospitalId);
+
+        if (!TryParseGender(request.Gender, out var gender))
+        {
+            throw new ValidationException(
+                $"Gender '{request.Gender}' is invalid.");
+        }
+
+        if (request.DateOfBirth > DateOnly.FromDateTime(DateTime.UtcNow))
+        {
+            throw new ValidationException(
+                "Date of birth cannot be in the future.");
+        }
+
+        patient.FirstName = request.FirstName.Trim();
+        patient.LastName = request.LastName.Trim();
+        patient.DateOfBirth = request.DateOfBirth;
+        patient.Gender = gender;
+        patient.NationalIdNumber = TrimOrNull(request.NationalIdNumber);
+        patient.Email = TrimOrNull(request.Email);
+        patient.PhoneNumber = TrimOrNull(request.PhoneNumber);
+        patient.StreetAddress = TrimOrNull(request.StreetAddress);
+        patient.City = TrimOrNull(request.City);
+        patient.PostalCode = TrimOrNull(request.PostalCode);
+        patient.Country = TrimOrNull(request.Country);
+        patient.EmergencyContactName = TrimOrNull(request.EmergencyContactName);
+        patient.EmergencyContactPhone = TrimOrNull(request.EmergencyContactPhone);
+        patient.IsEmployee = request.IsEmployee;
+        patient.UpdatedAt = DateTime.UtcNow;
+        patient.UpdatedBy = _currentUser.UserId.ToString();
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Patient {PatientId} updated for hospital {HospitalId}.",
+            patient.Id,
+            patient.HospitalId);
+
+        return ToSummaryResponse(patient);
+    }
+
     private Guid? ResolveHospitalId()
     {
         return _currentUser.HospitalId;
