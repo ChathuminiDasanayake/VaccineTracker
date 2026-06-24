@@ -124,6 +124,70 @@ public sealed class UsersServiceTests
     }
 
     [Test]
+    public async Task ActivateUserAsync_WhenCurrentUserNotHospitalAdmin_ThrowsForbiddenException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        dbContext.Users.Add(new User
+        {
+            Id = userId,
+            Username = "user.one",
+            NormalizedUsername = "USER.ONE",
+            Email = "user.one@test.com",
+            NormalizedEmail = "USER.ONE@TEST.COM",
+            PasswordHash = new PasswordHashService().HashPassword("Password@123"),
+            FirstName = "User",
+            LastName = "One",
+            HospitalId = hospitalId,
+            Status = EntityStatus.Inactive,
+            Roles = [Role.Doctor]
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext, Guid.NewGuid(), hospitalId, Role.Doctor);
+
+        Assert.ThrowsAsync<ForbiddenException>(async () =>
+            await service.ActivateUserAsync(userId));
+    }
+
+    [Test]
+    public async Task DeactivateUserAsync_WhenCurrentUserNotHospitalAdmin_ThrowsForbiddenException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        dbContext.Users.Add(new User
+        {
+            Id = userId,
+            Username = "user.two",
+            NormalizedUsername = "USER.TWO",
+            Email = "user.two@test.com",
+            NormalizedEmail = "USER.TWO@TEST.COM",
+            PasswordHash = new PasswordHashService().HashPassword("Password@123"),
+            FirstName = "User",
+            LastName = "Two",
+            HospitalId = hospitalId,
+            Status = EntityStatus.Active,
+            Roles = [Role.Nurse]
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext, Guid.NewGuid(), hospitalId, Role.Doctor);
+
+        Assert.ThrowsAsync<ForbiddenException>(async () =>
+            await service.DeactivateUserAsync(userId));
+    }
+
+    [Test]
     public async Task CreateHospitalUserAsync_WhenHospitalDoesNotExist_ThrowsNotFoundException()
     {
         await using var dbContext = CreateDbContext();
@@ -190,6 +254,78 @@ public sealed class UsersServiceTests
 
         Assert.ThrowsAsync<ForbiddenException>(async () =>
             await service.CreateHospitalUserAsync(CreateValidRequest()));
+    }
+
+    [Test]
+    public async Task ActivateUserAsync_WhenUserAlreadyActive_ThrowsBusinessRuleException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        dbContext.Users.Add(new User
+        {
+            Id = userId,
+            Username = "active.user",
+            NormalizedUsername = "ACTIVE.USER",
+            Email = "active.user@test.com",
+            NormalizedEmail = "ACTIVE.USER@TEST.COM",
+            PasswordHash = new PasswordHashService().HashPassword("Password@123"),
+            FirstName = "Active",
+            LastName = "User",
+            HospitalId = hospitalId,
+            Status = EntityStatus.Active,
+            Roles = [Role.Doctor]
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            Guid.NewGuid(),
+            hospitalId,
+            Role.HospitalAdmin);
+
+        Assert.ThrowsAsync<BusinessRuleException>(async () =>
+            await service.ActivateUserAsync(userId));
+    }
+
+    [Test]
+    public async Task DeactivateUserAsync_WhenUserAlreadyInactive_ThrowsBusinessRuleException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        dbContext.Users.Add(new User
+        {
+            Id = userId,
+            Username = "inactive.user",
+            NormalizedUsername = "INACTIVE.USER",
+            Email = "inactive.user@test.com",
+            NormalizedEmail = "INACTIVE.USER@TEST.COM",
+            PasswordHash = new PasswordHashService().HashPassword("Password@123"),
+            FirstName = "Inactive",
+            LastName = "User",
+            HospitalId = hospitalId,
+            Status = EntityStatus.Inactive,
+            Roles = [Role.Nurse]
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            Guid.NewGuid(),
+            hospitalId,
+            Role.HospitalAdmin);
+
+        Assert.ThrowsAsync<BusinessRuleException>(async () =>
+            await service.DeactivateUserAsync(userId));
     }
 
     private static UsersService CreateService(

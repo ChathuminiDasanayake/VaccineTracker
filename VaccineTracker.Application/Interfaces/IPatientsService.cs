@@ -23,4 +23,9 @@ public interface IPatientsService
         Guid patientId,
         UpdatePatientRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<PatientSummaryResponse> UpdatePatientStatusAsync(
+        Guid patientId,
+        UpdatePatientStatusRequest request,
+        CancellationToken cancellationToken = default);
 }

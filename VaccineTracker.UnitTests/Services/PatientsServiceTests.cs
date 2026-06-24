@@ -221,6 +221,68 @@ public sealed class PatientsServiceTests
             await service.GetPatientDetailsAsync(Guid.NewGuid()));
     }
 
+    [Test]
+    public async Task UpdatePatientStatusAsync_WhenStatusInvalid_ThrowsValidationException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        var patient = new Patient
+        {
+            HospitalId = hospitalId,
+            PatientNumber = "PAT-005",
+            FirstName = "Status",
+            LastName = "Patient",
+            DateOfBirth = new DateOnly(1990, 1, 1),
+            Gender = Gender.Female,
+            Status = EntityStatus.Active
+        };
+        dbContext.Patients.Add(patient);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.HospitalAdmin);
+
+        Assert.ThrowsAsync<ValidationException>(async () =>
+            await service.UpdatePatientStatusAsync(
+                patient.Id,
+                new UpdatePatientStatusRequest("InvalidStatus")));
+    }
+
+    [Test]
+    public async Task UpdatePatientStatusAsync_WhenPatientAlreadyHasStatus_ThrowsBusinessRuleException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        var patient = new Patient
+        {
+            HospitalId = hospitalId,
+            PatientNumber = "PAT-006",
+            FirstName = "Active",
+            LastName = "Patient",
+            DateOfBirth = new DateOnly(1990, 1, 1),
+            Gender = Gender.Female,
+            Status = EntityStatus.Active
+        };
+        dbContext.Patients.Add(patient);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.HospitalAdmin);
+
+        Assert.ThrowsAsync<BusinessRuleException>(async () =>
+            await service.UpdatePatientStatusAsync(
+                patient.Id,
+                new UpdatePatientStatusRequest("Active")));
+    }
+
     private static PatientsService CreateService(
         VaccineTrackerDbContext dbContext,
         Guid? hospitalId,

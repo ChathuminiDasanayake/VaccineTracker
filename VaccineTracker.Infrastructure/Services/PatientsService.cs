@@ -101,7 +101,7 @@ public sealed class PatientsService : IPatientsService
 
         if (!hospitalId.HasValue)
         {
-            throw new ValidationException("Hospital ID is required.");
+            throw new ForbiddenException("Hospital access is required.");
         }
 
         EnsureHospitalAccess(hospitalId.Value);
@@ -223,6 +223,50 @@ public sealed class PatientsService : IPatientsService
         return ToSummaryResponse(patient);
     }
 
+    public async Task<PatientSummaryResponse> UpdatePatientStatusAsync(
+        Guid patientId,
+        UpdatePatientStatusRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var patient = await _dbContext.Patients
+            .FirstOrDefaultAsync(
+                patient => patient.Id == patientId && !patient.IsDeleted,
+                cancellationToken);
+
+        if (patient is null)
+        {
+            throw new NotFoundException("Patient", patientId);
+        }
+
+        EnsureHospitalAccess(patient.HospitalId);
+
+        if (!TryParseEntityStatus(request.Status, out var status))
+        {
+            throw new ValidationException(
+                $"Status '{request.Status}' is invalid.");
+        }
+
+        if (patient.Status == status)
+        {
+            throw new BusinessRuleException(
+                $"Patient is already {status}.");
+        }   
+
+        patient.Status = status;
+        patient.UpdatedAt = DateTime.UtcNow;
+        patient.UpdatedBy = _currentUser.UserId.ToString();
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Patient {PatientId} status changed to {Status} for hospital {HospitalId}.",
+            patient.Id,
+            patient.Status,
+            patient.HospitalId);
+
+        return ToSummaryResponse(patient);
+    }
+
     private Guid? ResolveHospitalId()
     {
         return _currentUser.HospitalId;
@@ -273,6 +317,12 @@ public sealed class PatientsService : IPatientsService
     private static bool TryParseGender(string gender, out Gender value)
     {
         return Enum.TryParse(gender, ignoreCase: true, out value) &&
+            Enum.IsDefined(value);
+    }
+
+    private static bool TryParseEntityStatus(string status, out EntityStatus value)
+    {
+        return Enum.TryParse(status, ignoreCase: true, out value) &&
             Enum.IsDefined(value);
     }
 

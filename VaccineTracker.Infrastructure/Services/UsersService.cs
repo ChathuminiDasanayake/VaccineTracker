@@ -245,8 +245,19 @@ public sealed class UsersService : IUsersService
         EntityStatus status,
         CancellationToken cancellationToken)
     {
+        if (!CanManageHospitalUsers())
+        {
+            throw new ForbiddenException(
+                $"You cannot manage user '{userId}'.");
+        }
+
         var user = await GetManageableUserAsync(userId, cancellationToken);
 
+        if (user.Status == status)
+        {
+            throw new BusinessRuleException(
+                $"User is already {status}.");
+        }
         user.Status = status;
         user.UpdatedAt = DateTime.UtcNow;
         user.UpdatedBy = _currentUser.UserId.ToString();
