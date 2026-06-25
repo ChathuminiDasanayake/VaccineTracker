@@ -115,6 +115,299 @@ public sealed class PatientsServiceTests
     }
 
     [Test]
+    public async Task GetPatientsAsync_SearchByPatientNumber_ReturnsMatchingPatient()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        dbContext.Patients.AddRange(
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-ABCD-1234",
+                FirstName = "Jane",
+                LastName = "Doe",
+                DateOfBirth = new DateOnly(1995, 6, 15),
+                Gender = Gender.Female,
+                Status = EntityStatus.Active
+            },
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-WXYZ-9876",
+                FirstName = "John",
+                LastName = "Smith",
+                DateOfBirth = new DateOnly(1988, 3, 20),
+                Gender = Gender.Male,
+                Status = EntityStatus.Active
+            });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.Staff);
+
+        var result = await service.GetPatientsAsync(
+            new PatientSearchRequest
+            {
+                PatientNumber = "PT-ABCD-1234"
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Items, Has.Count.EqualTo(1));
+            Assert.That(result.Items[0].PatientNumber, Is.EqualTo("PT-ABCD-1234"));
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.TotalPages, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task GetPatientsAsync_SearchByName_ReturnsMatchingPatient()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        dbContext.Patients.AddRange(
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-ABCD-1234",
+                FirstName = "Jane",
+                LastName = "Doe",
+                DateOfBirth = new DateOnly(1995, 6, 15),
+                Gender = Gender.Female,
+                Status = EntityStatus.Active
+            },
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-WXYZ-9876",
+                FirstName = "John",
+                LastName = "Smith",
+                DateOfBirth = new DateOnly(1988, 3, 20),
+                Gender = Gender.Male,
+                Status = EntityStatus.Active
+            });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.Staff);
+
+        var result = await service.GetPatientsAsync(
+            new PatientSearchRequest
+            {
+                Name = "John Smith"
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Items, Has.Count.EqualTo(1));
+
+            var patient = result.Items.Single();
+
+            Assert.That(patient.FirstName, Is.EqualTo("John"));
+            Assert.That(patient.LastName, Is.EqualTo("Smith"));
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.TotalPages, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task GetPatientsAsync_SearchByDOB_ReturnsMatchingPatient()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        dbContext.Patients.AddRange(
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-ABCD-1234",
+                FirstName = "Jane",
+                LastName = "Doe",
+                DateOfBirth = new DateOnly(1996, 6, 26),
+                Gender = Gender.Female,
+                Status = EntityStatus.Active
+            },
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-WXYZ-9876",
+                FirstName = "John",
+                LastName = "Smith",
+                DateOfBirth = new DateOnly(1985, 4, 10),
+                Gender = Gender.Male,
+                Status = EntityStatus.Active
+            });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.Staff);
+
+        var result = await service.GetPatientsAsync(
+            new PatientSearchRequest
+            {
+                DateOfBirth = new DateOnly(1985, 4, 10)
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Items, Has.Count.EqualTo(1));
+
+            var patient = result.Items.Single();
+            
+            Assert.That(patient.DateOfBirth, Is.EqualTo(new DateOnly(1985, 4, 10)));
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.TotalPages, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task GetPatientsAsync_SearchByStatus_ReturnsMatchingPatient()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        dbContext.Patients.AddRange(
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-ABCD-1234",
+                FirstName = "Jane",
+                LastName = "Doe",
+                DateOfBirth = new DateOnly(1996, 6, 26),
+                Gender = Gender.Female,
+                Status = EntityStatus.Active
+            },
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-WXYZ-9876",
+                FirstName = "John",
+                LastName = "Smith",
+                DateOfBirth = new DateOnly(1985, 4, 10),
+                Gender = Gender.Male,
+                Status = EntityStatus.Inactive
+            });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.Staff);
+
+        var result = await service.GetPatientsAsync(
+            new PatientSearchRequest
+            {
+                Status = EntityStatus.Active.ToString()
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Items, Has.Count.EqualTo(1));
+
+            var patient = result.Items.Single();
+            
+            Assert.That(patient.Status, Is.EqualTo(EntityStatus.Active.ToString()));
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.TotalPages, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task GetPatientsAsync_SearchByInvalidStatus_ThrowsValidationException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.Staff);
+
+        Assert.ThrowsAsync<ValidationException>(async () =>
+            await service.GetPatientsAsync(
+                new PatientSearchRequest
+                {
+                    Status = "InvalidStatus"
+                }));
+    }
+
+    [Test]
+    public async Task GetPatientsAsync_WithPaging_ReturnsCorrectPageAndMetadata()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        dbContext.Patients.AddRange(
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-007",
+                FirstName = "Apple",
+                LastName = "Alpha",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Gender = Gender.Female,
+                Status = EntityStatus.Active
+            },
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-008",
+                FirstName = "Orange",
+                LastName = "Beta",
+                DateOfBirth = new DateOnly(1991, 1, 1),
+                Gender = Gender.Male,
+                Status = EntityStatus.Active
+            },
+            new Patient
+            {
+                HospitalId = hospitalId,
+                PatientNumber = "PT-009",
+                FirstName = "Grape",
+                LastName = "Gamma",
+                DateOfBirth = new DateOnly(1992, 1, 1),
+                Gender = Gender.Male,
+                Status = EntityStatus.Active
+            });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.Staff);
+
+        var result = await service.GetPatientsAsync(
+            new PatientSearchRequest
+            {
+                PageNumber = 2,
+                PageSize = 2
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Items, Has.Count.EqualTo(1));
+            Assert.That(result.Items[0].PatientNumber, Is.EqualTo("PT-009"));
+            Assert.That(result.PageNumber, Is.EqualTo(2));
+            Assert.That(result.PageSize, Is.EqualTo(2));
+            Assert.That(result.TotalCount, Is.EqualTo(3));
+            Assert.That(result.TotalPages, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
     public async Task GetPatientAsync_FromAnotherHospital_ThrowsForbiddenException()
     {
         await using var dbContext = CreateDbContext();
@@ -144,7 +437,7 @@ public sealed class PatientsServiceTests
             await service.GetPatientAsync(patient.Id));
     }
 
-    [Test]
+     [Test]
     public async Task GetPatientAsync_AsPlatformAdmin_ThrowsForbiddenException()
     {
         await using var dbContext = CreateDbContext();
