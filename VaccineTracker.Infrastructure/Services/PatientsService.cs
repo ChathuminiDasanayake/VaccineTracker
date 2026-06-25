@@ -59,12 +59,13 @@ public sealed class PatientsService : IPatientsService
 
         if (!string.IsNullOrWhiteSpace(request.Name))
         {
-            var name = request.Name.Trim();
+            var name = NormalizeSearchText(request.Name);
 
             query = query.Where(patient =>
                 patient.FirstName.Contains(name) ||
                 patient.LastName.Contains(name) ||
-                (patient.FirstName + " " + patient.LastName).Contains(name));
+                (patient.FirstName + " " + patient.LastName).Contains(name) ||
+                (patient.LastName + " " + patient.FirstName).Contains(name));
         }
 
         if (request.DateOfBirth.HasValue)
@@ -372,6 +373,15 @@ public sealed class PatientsService : IPatientsService
         return string.IsNullOrWhiteSpace(value)
             ? null
             : value.Trim();
+    }
+
+    private static string NormalizeSearchText(string value)
+    {
+        return string.Join(
+            ' ',
+            value.Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries));
     }
 
     private async Task<Patient> GetPatientEntityAsync(

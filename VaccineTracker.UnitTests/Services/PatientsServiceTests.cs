@@ -202,7 +202,7 @@ public sealed class PatientsServiceTests
         var result = await service.GetPatientsAsync(
             new PatientSearchRequest
             {
-                Name = "John Smith"
+                Name = "John   Smith"
             });
 
         Assert.Multiple(() =>
