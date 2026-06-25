@@ -107,10 +107,11 @@ public sealed class PatientsServiceTests
             currentHospitalId,
             Role.Staff);
 
-        var result = await service.GetPatientsAsync();
+        var result = await service.GetPatientsAsync(
+            new PatientSearchRequest());
 
-        Assert.That(result, Has.Count.EqualTo(1));
-        Assert.That(result[0].PatientNumber, Is.EqualTo("PAT-OWN"));
+        Assert.That(result.Items, Has.Count.EqualTo(1));
+        Assert.That(result.Items[0].PatientNumber, Is.EqualTo("PAT-OWN"));
     }
 
     [Test]

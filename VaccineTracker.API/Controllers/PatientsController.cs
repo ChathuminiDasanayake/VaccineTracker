@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VaccineTracker.API.Authorization;
 using VaccineTracker.Application.Interfaces;
+using VaccineTracker.Contracts.Common;
 using VaccineTracker.Contracts.Patients;
 
 namespace VaccineTracker.API.Controllers;
@@ -20,14 +21,16 @@ public sealed class PatientsController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(
-        typeof(IReadOnlyList<PatientSummaryResponse>),
+        typeof(PagedResponse<PatientSummaryResponse>),
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<IReadOnlyList<PatientSummaryResponse>>> GetPatients(
+    public async Task<ActionResult<PagedResponse<PatientSummaryResponse>>> GetPatients(
+        [FromQuery] PatientSearchRequest request,
         CancellationToken cancellationToken)
     {
         var patients = await _patientsService.GetPatientsAsync(
+            request,
             cancellationToken);
 
         return Ok(patients);

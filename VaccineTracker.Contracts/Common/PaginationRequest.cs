@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace VaccineTracker.Contracts.Common;
 
-public sealed class PaginationRequest
+public class PaginationRequest
 {
     [Range(1, int.MaxValue)]
     public int PageNumber { get; init; } = 1;

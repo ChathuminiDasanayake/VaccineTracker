@@ -1,10 +1,12 @@
+using VaccineTracker.Contracts.Common;
 using VaccineTracker.Contracts.Patients;
 
 namespace VaccineTracker.Application.Interfaces;
 
 public interface IPatientsService
 {
-    Task<IReadOnlyList<PatientSummaryResponse>> GetPatientsAsync(
+    Task<PagedResponse<PatientSummaryResponse>> GetPatientsAsync(
+        PatientSearchRequest request,
         CancellationToken cancellationToken = default);
 
     Task<PatientSummaryResponse> GetPatientAsync(

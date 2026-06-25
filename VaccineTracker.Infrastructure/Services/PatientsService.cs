@@ -7,6 +7,7 @@ using VaccineTracker.Domain.Entities;
 using VaccineTracker.Domain.Enums;
 using VaccineTracker.Infrastructure.Persistence;
 using System.Security.Cryptography;
+using VaccineTracker.Contracts.Common;
 
 namespace VaccineTracker.Infrastructure.Services;
 
@@ -29,7 +30,8 @@ public sealed class PatientsService : IPatientsService
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<PatientSummaryResponse>> GetPatientsAsync(
+    public async Task<PagedResponse<PatientSummaryResponse>> GetPatientsAsync(
+        PatientSearchRequest request,
         CancellationToken cancellationToken = default)
     {
         var hospitalId = ResolveHospitalId();
@@ -41,27 +43,55 @@ public sealed class PatientsService : IPatientsService
 
         EnsureHospitalAccess(hospitalId.Value);
 
-        var patients = await _dbContext.Patients
+        var query = _dbContext.Patients
             .AsNoTracking()
             .Where(patient =>
                 patient.HospitalId == hospitalId.Value &&
-                !patient.IsDeleted)
+                !patient.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(request.PatientNumber))
+        {
+            var patientNumber = request.PatientNumber.Trim();
+
+            query = query.Where(patient =>
+                patient.PatientNumber.Contains(patientNumber));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            var name = request.Name.Trim();
+
+            query = query.Where(patient =>
+                patient.FirstName.Contains(name) ||
+                patient.LastName.Contains(name) ||
+                (patient.FirstName + " " + patient.LastName).Contains(name));
+        }
+
+        if (request.DateOfBirth.HasValue)
+        {
+            query = query.Where(patient =>
+                patient.DateOfBirth == request.DateOfBirth.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            if (!TryParseEntityStatus(request.Status, out var status))
+            {
+                throw new ValidationException(
+                    $"Status '{request.Status}' is invalid.");
+            }
+
+            query = query.Where(patient => patient.Status == status);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var patients = await query
             .OrderBy(patient => patient.LastName)
             .ThenBy(patient => patient.FirstName)
             .ThenBy(patient => patient.Id)
-            .Select(patient => new
-            {
-                patient.Id,
-                patient.PatientNumber,
-                patient.FirstName,
-                patient.LastName,
-                patient.DateOfBirth,
-                patient.Gender,
-                patient.Status
-            })
-            .ToListAsync(cancellationToken);
-
-        return patients
+            .Skip((request.PageNumber - 1) * request.PageSize)
+            .Take(request.PageSize)
             .Select(patient => new PatientSummaryResponse(
                 patient.Id,
                 patient.PatientNumber,
@@ -70,7 +100,18 @@ public sealed class PatientsService : IPatientsService
                 patient.DateOfBirth,
                 patient.Gender.ToString(),
                 patient.Status.ToString()))
-            .ToList();
+            .ToListAsync(cancellationToken);
+
+        var totalPages = totalCount == 0
+            ? 0
+            : (totalCount + request.PageSize - 1) / request.PageSize;
+
+        return new PagedResponse<PatientSummaryResponse>(
+            patients,
+            request.PageNumber,
+            request.PageSize,
+            totalCount,
+            totalPages);
     }
 
     public async Task<PatientSummaryResponse> GetPatientAsync(
