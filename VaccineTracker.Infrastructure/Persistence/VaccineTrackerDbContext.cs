@@ -17,6 +17,10 @@ public sealed class VaccineTrackerDbContext : DbContext
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<LoginAudit> LoginAudits => Set<LoginAudit>();
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<Vaccine> Vaccines => Set<Vaccine>();
+    public DbSet<VaccineScheduleItem> VaccineScheduleItems => Set<VaccineScheduleItem>();
+    public DbSet<VaccinationRecord> VaccinationRecords => Set<VaccinationRecord>();
+    public DbSet<VaccineManufacturer> VaccineManufacturers => Set<VaccineManufacturer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,5 +104,89 @@ public sealed class VaccineTrackerDbContext : DbContext
                 .HasForeignKey(patient => patient.HospitalId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        modelBuilder.Entity<Vaccine>(entity =>
+        {
+            entity.HasIndex(vaccine => vaccine.Code)
+                .IsUnique();
+
+            entity.Property(vaccine => vaccine.Code)
+                .HasMaxLength(50);
+
+            entity.Property(vaccine => vaccine.Name)
+                .HasMaxLength(200);
+
+            entity.Property(vaccine => vaccine.DiseaseTarget)
+                .HasMaxLength(200);
+
+            entity.Property(vaccine => vaccine.Description)
+                .HasMaxLength(500);
+
+            entity.HasOne(vaccine => vaccine.Manufacturer)
+                .WithMany(manufacturer => manufacturer.Vaccines)
+                .HasForeignKey(vaccine => vaccine.ManufacturerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VaccineScheduleItem>(entity =>
+        {
+            entity.HasIndex(x => new { x.VaccineId, x.TargetGroup, x.DoseNumber })
+                .IsUnique();
+
+            entity.Property(x => x.Description).HasMaxLength(500);
+
+            entity.HasOne(scheduleItem => scheduleItem.Vaccine)
+                .WithMany(vaccine => vaccine.ScheduleItems)
+                .HasForeignKey(scheduleItem => scheduleItem.VaccineId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VaccinationRecord>(entity =>
+        {
+            entity.Property(x => x.BatchNumber).HasMaxLength(100);
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+            
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.HospitalId);
+            entity.HasIndex(x => x.VaccineId);
+            entity.HasIndex(x => x.AdministeredDate);
+
+            entity.HasOne(record => record.Patient)
+                .WithMany()
+                .HasForeignKey(record => record.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(record => record.Hospital)
+                .WithMany()
+                .HasForeignKey(record => record.HospitalId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(record => record.Vaccine)
+                .WithMany(vaccine => vaccine.VaccinationRecords)
+                .HasForeignKey(record => record.VaccineId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(record => record.VaccineScheduleItem)
+                .WithMany()
+                .HasForeignKey(record => record.VaccineScheduleItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VaccineManufacturer>(entity =>
+        {
+            entity.HasIndex(manufacturer => manufacturer.Code)
+                .IsUnique();
+
+            entity.Property(manufacturer => manufacturer.Code)
+                .HasMaxLength(50);
+
+            entity.Property(manufacturer => manufacturer.Name)
+                .HasMaxLength(200);
+
+            entity.Property(manufacturer => manufacturer.Description)
+                .HasMaxLength(500);
+        });
+
+
     }
 }
