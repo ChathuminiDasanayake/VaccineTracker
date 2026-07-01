@@ -5,7 +5,7 @@ namespace VaccineTracker.Domain.Entities
 {
     public sealed class VaccineScheduleItem : BaseAuditableEntity
     {
-        public Guid VaccineId { get; set; }
+        public Guid VaccineTypeId { get; set; }
 
         public VaccineTargetGroup TargetGroup { get; set; }
 
@@ -21,6 +21,6 @@ namespace VaccineTracker.Domain.Entities
 
         public EntityStatus Status { get; set; } = EntityStatus.Active;
 
-        public Vaccine Vaccine { get; set; } = null!;
+        public VaccineType VaccineType { get; set; } = null!;
     }
 }

@@ -30,20 +30,18 @@ public sealed class VaccinesService : IVaccinesService
         var pageNumber = Math.Max(request.PageNumber, 1);
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
-        var query = _dbContext.Vaccines
+        var query = _dbContext.VaccineTypes
             .AsNoTracking()
-            .Include(vaccine => vaccine.Manufacturer)
-            .Where(vaccine => !vaccine.IsDeleted);
+            .Where(vaccineType => !vaccineType.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var search = request.Search.Trim();
 
-            query = query.Where(vaccine =>
-                vaccine.Name.Contains(search) ||
-                vaccine.Code.Contains(search) ||
-                vaccine.DiseaseTarget.Contains(search) ||
-                vaccine.Manufacturer.Name.Contains(search));
+            query = query.Where(vaccineType =>
+                vaccineType.Name.Contains(search) ||
+                vaccineType.Code.Contains(search) ||
+                vaccineType.DiseaseTarget.Contains(search));
         }
 
         if (!string.IsNullOrWhiteSpace(request.Status))
@@ -54,27 +52,25 @@ public sealed class VaccinesService : IVaccinesService
                     $"Status '{request.Status}' is invalid.");
             }
 
-            query = query.Where(vaccine => vaccine.Status == status);
+            query = query.Where(vaccineType => vaccineType.Status == status);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
 
         var vaccines = await query
-            .OrderBy(vaccine => vaccine.Name)
-            .ThenBy(vaccine => vaccine.Code)
+            .OrderBy(vaccineType => vaccineType.Name)
+            .ThenBy(vaccineType => vaccineType.Code)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .Select(vaccine => new VaccineResponse(
-                vaccine.Id,
-                vaccine.Name,
-                vaccine.Code,
-                vaccine.ManufacturerId,
-                vaccine.Manufacturer.Name,
-                vaccine.DiseaseTarget,
-                vaccine.Description,
-                vaccine.Status.ToString(),
-                vaccine.CreatedAt,
-                vaccine.UpdatedAt))
+            .Select(vaccineType => new VaccineResponse(
+                vaccineType.Id,
+                vaccineType.Name,
+                vaccineType.Code,
+                vaccineType.DiseaseTarget,
+                vaccineType.Description,
+                vaccineType.Status.ToString(),
+                vaccineType.CreatedAt,
+                vaccineType.UpdatedAt))
             .ToListAsync(cancellationToken);
 
         var totalPages = totalCount == 0
@@ -95,61 +91,44 @@ public sealed class VaccinesService : IVaccinesService
     {
         var code = request.Code.Trim().ToUpperInvariant();
 
-        var manufacturer = await _dbContext.VaccineManufacturers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                manufacturer =>
-                    manufacturer.Id == request.ManufacturerId &&
-                    manufacturer.Status == EntityStatus.Active &&
-                    !manufacturer.IsDeleted,
-                cancellationToken);
-
-        if (manufacturer is null)
-        {
-            throw new NotFoundException("Active vaccine manufacturer", request.ManufacturerId);
-        }
-
-        var codeExists = await _dbContext.Vaccines
+        var codeExists = await _dbContext.VaccineTypes
             .AnyAsync(
-                vaccine => !vaccine.IsDeleted &&
-                    vaccine.Code == code,
+                vaccineType => !vaccineType.IsDeleted &&
+                    vaccineType.Code == code,
                 cancellationToken);
 
         if (codeExists)
         {
             throw new ConflictException(
-                $"A vaccine with code '{code}' already exists.");
+                $"A vaccine type with code '{code}' already exists.");
         }
 
-        var vaccine = new Vaccine
+        var vaccineType = new VaccineType
         {
             Name = request.Name.Trim(),
             Code = code,
-            ManufacturerId = request.ManufacturerId,
             DiseaseTarget = request.DiseaseTarget.Trim(),
             Description = TrimOrNull(request.Description),
             Status = EntityStatus.Active
         };
 
-        _dbContext.Vaccines.Add(vaccine);
+        _dbContext.VaccineTypes.Add(vaccineType);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "Vaccine {VaccineId} with code {Code} created.",
-            vaccine.Id,
-            vaccine.Code);
+            "Vaccine type {VaccineTypeId} with code {Code} created.",
+            vaccineType.Id,
+            vaccineType.Code);
 
         return new VaccineResponse(
-            vaccine.Id,
-            vaccine.Name,
-            vaccine.Code,
-            vaccine.ManufacturerId,
-            manufacturer.Name,
-            vaccine.DiseaseTarget,
-            vaccine.Description,
-            vaccine.Status.ToString(),
-            vaccine.CreatedAt,
-            vaccine.UpdatedAt);
+            vaccineType.Id,
+            vaccineType.Name,
+            vaccineType.Code,
+            vaccineType.DiseaseTarget,
+            vaccineType.Description,
+            vaccineType.Status.ToString(),
+            vaccineType.CreatedAt,
+            vaccineType.UpdatedAt);
     }
 
     private static bool TryParseEntityStatus(string status, out EntityStatus value)

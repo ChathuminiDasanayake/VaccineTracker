@@ -17,7 +17,8 @@ public sealed class VaccineTrackerDbContext : DbContext
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<LoginAudit> LoginAudits => Set<LoginAudit>();
     public DbSet<Patient> Patients => Set<Patient>();
-    public DbSet<Vaccine> Vaccines => Set<Vaccine>();
+    public DbSet<VaccineType> VaccineTypes => Set<VaccineType>();
+    public DbSet<VaccineProduct> VaccineProducts => Set<VaccineProduct>();
     public DbSet<VaccineScheduleItem> VaccineScheduleItems => Set<VaccineScheduleItem>();
     public DbSet<VaccinationRecord> VaccinationRecords => Set<VaccinationRecord>();
     public DbSet<VaccineManufacturer> VaccineManufacturers => Set<VaccineManufacturer>();
@@ -105,39 +106,59 @@ public sealed class VaccineTrackerDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<Vaccine>(entity =>
+        modelBuilder.Entity<VaccineType>(entity =>
         {
-            entity.HasIndex(vaccine => vaccine.Code)
+            entity.HasIndex(vaccineType => vaccineType.Code)
                 .IsUnique();
 
-            entity.Property(vaccine => vaccine.Code)
+            entity.Property(vaccineType => vaccineType.Code)
                 .HasMaxLength(50);
 
-            entity.Property(vaccine => vaccine.Name)
+            entity.Property(vaccineType => vaccineType.Name)
                 .HasMaxLength(200);
 
-            entity.Property(vaccine => vaccine.DiseaseTarget)
+            entity.Property(vaccineType => vaccineType.DiseaseTarget)
                 .HasMaxLength(200);
 
-            entity.Property(vaccine => vaccine.Description)
+            entity.Property(vaccineType => vaccineType.Description)
+                .HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<VaccineProduct>(entity =>
+        {
+            entity.HasIndex(product => product.Code)
+                .IsUnique();
+
+            entity.Property(product => product.Code)
+                .HasMaxLength(50);
+
+            entity.Property(product => product.Name)
+                .HasMaxLength(200);
+
+            entity.Property(product => product.Description)
                 .HasMaxLength(500);
 
-            entity.HasOne(vaccine => vaccine.Manufacturer)
-                .WithMany(manufacturer => manufacturer.Vaccines)
-                .HasForeignKey(vaccine => vaccine.ManufacturerId)
+            entity.HasOne(product => product.VaccineType)
+                .WithMany(vaccineType => vaccineType.Products)
+                .HasForeignKey(product => product.VaccineTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(product => product.Manufacturer)
+                .WithMany(manufacturer => manufacturer.VaccineProducts)
+                .HasForeignKey(product => product.ManufacturerId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<VaccineScheduleItem>(entity =>
         {
-            entity.HasIndex(x => new { x.VaccineId, x.TargetGroup, x.DoseNumber })
+            entity.HasIndex(x => new { x.VaccineTypeId, x.TargetGroup, x.DoseNumber })
                 .IsUnique();
 
             entity.Property(x => x.Description).HasMaxLength(500);
 
-            entity.HasOne(scheduleItem => scheduleItem.Vaccine)
-                .WithMany(vaccine => vaccine.ScheduleItems)
-                .HasForeignKey(scheduleItem => scheduleItem.VaccineId)
+            entity.HasOne(scheduleItem => scheduleItem.VaccineType)
+                .WithMany(vaccineType => vaccineType.ScheduleItems)
+                .HasForeignKey(scheduleItem => scheduleItem.VaccineTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -148,7 +169,7 @@ public sealed class VaccineTrackerDbContext : DbContext
             
             entity.HasIndex(x => x.PatientId);
             entity.HasIndex(x => x.HospitalId);
-            entity.HasIndex(x => x.VaccineId);
+            entity.HasIndex(x => x.VaccineProductId);
             entity.HasIndex(x => x.AdministeredDate);
 
             entity.HasOne(record => record.Patient)
@@ -161,9 +182,9 @@ public sealed class VaccineTrackerDbContext : DbContext
                 .HasForeignKey(record => record.HospitalId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(record => record.Vaccine)
-                .WithMany(vaccine => vaccine.VaccinationRecords)
-                .HasForeignKey(record => record.VaccineId)
+            entity.HasOne(record => record.VaccineProduct)
+                .WithMany(product => product.VaccinationRecords)
+                .HasForeignKey(record => record.VaccineProductId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(record => record.VaccineScheduleItem)

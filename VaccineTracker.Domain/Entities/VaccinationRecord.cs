@@ -9,7 +9,7 @@ namespace VaccineTracker.Domain.Entities
 
         public Guid HospitalId { get; set; }
 
-        public Guid VaccineId { get; set; }
+        public Guid VaccineProductId { get; set; }
 
         public Guid? VaccineScheduleItemId { get; set; }
 
@@ -27,7 +27,7 @@ namespace VaccineTracker.Domain.Entities
 
         public Hospital Hospital { get; set; } = null!;
 
-        public Vaccine Vaccine { get; set; } = null!;
+        public VaccineProduct VaccineProduct { get; set; } = null!;
 
         public VaccinationRecordStatus Status { get; set; } = VaccinationRecordStatus.Administered;
 

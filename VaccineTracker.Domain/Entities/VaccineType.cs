@@ -3,13 +3,11 @@ using VaccineTracker.Domain.Enums;
 
 namespace VaccineTracker.Domain.Entities
 {
-    public sealed class Vaccine : BaseAuditableEntity
+    public sealed class VaccineType : BaseAuditableEntity
     {
         public string Name { get; set; } = string.Empty;
 
         public string Code { get; set; } = string.Empty;
-
-        public Guid ManufacturerId { get; set; }
 
         public string DiseaseTarget { get; set; } = string.Empty;
 
@@ -17,10 +15,8 @@ namespace VaccineTracker.Domain.Entities
 
         public EntityStatus Status { get; set; } = EntityStatus.Active;
 
-        public VaccineManufacturer Manufacturer { get; set; } = null!;
+        public ICollection<VaccineProduct> Products { get; set; } = [];
 
         public ICollection<VaccineScheduleItem> ScheduleItems { get; set; } = [];
-
-        public ICollection<VaccinationRecord> VaccinationRecords { get; set; } = [];
     }
 }

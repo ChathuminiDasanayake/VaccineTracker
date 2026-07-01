@@ -13,6 +13,6 @@ namespace VaccineTracker.Domain.Entities
 
         public EntityStatus Status { get; set; } = EntityStatus.Active;
 
-        public ICollection<Vaccine> Vaccines { get; set; } = [];
+        public ICollection<VaccineProduct> VaccineProducts { get; set; } = [];
     }
 }
