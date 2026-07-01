@@ -131,6 +131,61 @@ public sealed class VaccinesService : IVaccinesService
             vaccineType.UpdatedAt);
     }
 
+    public async Task<VaccineResponse> UpdateVaccineAsync(
+        Guid vaccineTypeId,
+        UpdateVaccineRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var vaccineType = await _dbContext.VaccineTypes
+            .FirstOrDefaultAsync(
+                vaccineType => vaccineType.Id == vaccineTypeId &&
+                    !vaccineType.IsDeleted,
+                cancellationToken);
+
+        if (vaccineType is null)
+        {
+            throw new NotFoundException("Vaccine type", vaccineTypeId);
+        }
+
+        var code = request.Code.Trim().ToUpperInvariant();
+
+        var codeExists = await _dbContext.VaccineTypes
+            .AnyAsync(
+                existingVaccineType =>
+                    existingVaccineType.Id != vaccineTypeId &&
+                    !existingVaccineType.IsDeleted &&
+                    existingVaccineType.Code == code,
+                cancellationToken);
+
+        if (codeExists)
+        {
+            throw new ConflictException(
+                $"A vaccine type with code '{code}' already exists.");
+        }
+
+        vaccineType.Name = request.Name.Trim();
+        vaccineType.Code = code;
+        vaccineType.DiseaseTarget = request.DiseaseTarget.Trim();
+        vaccineType.Description = TrimOrNull(request.Description);
+        vaccineType.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Vaccine type {VaccineTypeId} updated.",
+            vaccineType.Id);
+
+        return new VaccineResponse(
+            vaccineType.Id,
+            vaccineType.Name,
+            vaccineType.Code,
+            vaccineType.DiseaseTarget,
+            vaccineType.Description,
+            vaccineType.Status.ToString(),
+            vaccineType.CreatedAt,
+            vaccineType.UpdatedAt);
+    }
+
     private static bool TryParseEntityStatus(string status, out EntityStatus value)
     {
         return Enum.TryParse(status, ignoreCase: true, out value) &&

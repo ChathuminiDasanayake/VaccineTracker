@@ -54,4 +54,25 @@ public sealed class VaccinesController : ControllerBase
             new { id = vaccine.Id },
             vaccine);
     }
+
+    [Authorize(Policy = AuthorizationPolicies.PlatformAdmin)]
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(VaccineResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<VaccineResponse>> UpdateVaccine(
+        Guid id,
+        UpdateVaccineRequest request,
+        CancellationToken cancellationToken)
+    {
+        var vaccine = await _vaccinesService.UpdateVaccineAsync(
+            id,
+            request,
+            cancellationToken);
+
+        return Ok(vaccine);
+    }
 }

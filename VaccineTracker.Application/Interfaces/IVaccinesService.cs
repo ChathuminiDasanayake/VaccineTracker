@@ -12,4 +12,9 @@ public interface IVaccinesService
     Task<VaccineResponse> CreateVaccineAsync(
         CreateVaccineRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<VaccineResponse> UpdateVaccineAsync(
+        Guid vaccineTypeId,
+        UpdateVaccineRequest request,
+        CancellationToken cancellationToken = default);
 }
