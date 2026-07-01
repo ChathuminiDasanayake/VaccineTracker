@@ -112,6 +112,7 @@ builder.Services.AddScoped<IHospitalsService, HospitalsService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
 builder.Services.AddScoped<IPatientsService, PatientsService>();
 builder.Services.AddScoped<IVaccinesService, VaccinesService>();
+builder.Services.AddScoped<IVaccineManufacturersService, VaccineManufacturersService>();
 builder.Services.AddScoped<IRequestContext, RequestContext>();
 builder.Services.AddScoped<ILoginAuditService, LoginAuditService>();
 
