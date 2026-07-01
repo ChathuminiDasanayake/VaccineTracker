@@ -17,4 +17,12 @@ public interface IVaccinesService
         Guid vaccineTypeId,
         UpdateVaccineRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<VaccineResponse> ActivateVaccineAsync(
+        Guid vaccineTypeId,
+        CancellationToken cancellationToken = default);
+
+    Task<VaccineResponse> DeactivateVaccineAsync(
+        Guid vaccineTypeId,
+        CancellationToken cancellationToken = default);
 }

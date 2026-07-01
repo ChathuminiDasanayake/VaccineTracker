@@ -54,6 +54,10 @@ public sealed class VaccinesService : IVaccinesService
 
             query = query.Where(vaccineType => vaccineType.Status == status);
         }
+        else
+        {
+            query = query.Where(vaccineType => vaccineType.Status == EntityStatus.Active);
+        }
 
         var totalCount = await query.CountAsync(cancellationToken);
 
@@ -174,6 +178,69 @@ public sealed class VaccinesService : IVaccinesService
         _logger.LogInformation(
             "Vaccine type {VaccineTypeId} updated.",
             vaccineType.Id);
+
+        return new VaccineResponse(
+            vaccineType.Id,
+            vaccineType.Name,
+            vaccineType.Code,
+            vaccineType.DiseaseTarget,
+            vaccineType.Description,
+            vaccineType.Status.ToString(),
+            vaccineType.CreatedAt,
+            vaccineType.UpdatedAt);
+    }
+
+    public async Task<VaccineResponse> ActivateVaccineAsync(
+        Guid vaccineTypeId,
+        CancellationToken cancellationToken = default)
+    {
+        return await SetVaccineStatusAsync(
+            vaccineTypeId,
+            EntityStatus.Active,
+            cancellationToken);
+    }
+
+    public async Task<VaccineResponse> DeactivateVaccineAsync(
+        Guid vaccineTypeId,
+        CancellationToken cancellationToken = default)
+    {
+        return await SetVaccineStatusAsync(
+            vaccineTypeId,
+            EntityStatus.Inactive,
+            cancellationToken);
+    }
+
+    private async Task<VaccineResponse> SetVaccineStatusAsync(
+        Guid vaccineTypeId,
+        EntityStatus status,
+        CancellationToken cancellationToken)
+    {
+        var vaccineType = await _dbContext.VaccineTypes
+            .FirstOrDefaultAsync(
+                vaccineType => vaccineType.Id == vaccineTypeId &&
+                    !vaccineType.IsDeleted,
+                cancellationToken);
+
+        if (vaccineType is null)
+        {
+            throw new NotFoundException("Vaccine type", vaccineTypeId);
+        }
+
+        if (vaccineType.Status == status)
+        {
+            throw new BusinessRuleException(
+                $"Vaccine type is already {status}.");
+        }
+
+        vaccineType.Status = status;
+        vaccineType.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Vaccine type {VaccineTypeId} status changed to {Status}.",
+            vaccineType.Id,
+            vaccineType.Status);
 
         return new VaccineResponse(
             vaccineType.Id,

@@ -75,4 +75,38 @@ public sealed class VaccinesController : ControllerBase
 
         return Ok(vaccine);
     }
+
+    [Authorize(Policy = AuthorizationPolicies.PlatformAdmin)]
+    [HttpPatch("{id:guid}/activate")]
+    [ProducesResponseType(typeof(VaccineResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<VaccineResponse>> ActivateVaccine(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var vaccine = await _vaccinesService.ActivateVaccineAsync(
+            id,
+            cancellationToken);
+
+        return Ok(vaccine);
+    }
+
+    [Authorize(Policy = AuthorizationPolicies.PlatformAdmin)]
+    [HttpPatch("{id:guid}/deactivate")]
+    [ProducesResponseType(typeof(VaccineResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<VaccineResponse>> DeactivateVaccine(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var vaccine = await _vaccinesService.DeactivateVaccineAsync(
+            id,
+            cancellationToken);
+
+        return Ok(vaccine);
+    }
 }

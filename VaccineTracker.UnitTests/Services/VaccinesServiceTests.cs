@@ -65,7 +65,7 @@ public sealed class VaccinesServiceTests
     }
 
     [Test]
-    public async Task GetVaccinesAsync_ReturnsPagedActiveAndInactiveVaccineTypes()
+    public async Task GetVaccinesAsync_ReturnsOnlyActiveVaccineTypesByDefault()
     {
         await using var dbContext = CreateDbContext();
 
@@ -86,8 +86,8 @@ public sealed class VaccinesServiceTests
             Assert.That(result.Items, Has.Count.EqualTo(2));
             Assert.That(result.PageNumber, Is.EqualTo(1));
             Assert.That(result.PageSize, Is.EqualTo(2));
-            Assert.That(result.TotalCount, Is.EqualTo(3));
-            Assert.That(result.TotalPages, Is.EqualTo(2));
+            Assert.That(result.TotalCount, Is.EqualTo(2));
+            Assert.That(result.TotalPages, Is.EqualTo(1));
         });
     }
 
@@ -245,6 +245,97 @@ public sealed class VaccinesServiceTests
                     "bcg",
                     "Measles",
                     null)));
+    }
+
+    [Test]
+    public async Task DeactivateVaccineAsync_WithActiveVaccineType_DeactivatesVaccineType()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var vaccineType = new VaccineType
+        {
+            Name = "BCG Vaccine",
+            Code = "BCG",
+            DiseaseTarget = "Tuberculosis",
+            Status = EntityStatus.Active
+        };
+        dbContext.VaccineTypes.Add(vaccineType);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+
+        var result = await service.DeactivateVaccineAsync(vaccineType.Id);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Status, Is.EqualTo("Inactive"));
+            Assert.That(result.UpdatedAt, Is.Not.Null);
+        });
+
+        var updated = await dbContext.VaccineTypes.SingleAsync();
+
+        Assert.That(updated.Status, Is.EqualTo(EntityStatus.Inactive));
+    }
+
+    [Test]
+    public async Task ActivateVaccineAsync_WithInactiveVaccineType_ActivatesVaccineType()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var vaccineType = new VaccineType
+        {
+            Name = "BCG Vaccine",
+            Code = "BCG",
+            DiseaseTarget = "Tuberculosis",
+            Status = EntityStatus.Inactive
+        };
+        dbContext.VaccineTypes.Add(vaccineType);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+
+        var result = await service.ActivateVaccineAsync(vaccineType.Id);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Status, Is.EqualTo("Active"));
+            Assert.That(result.UpdatedAt, Is.Not.Null);
+        });
+
+        var updated = await dbContext.VaccineTypes.SingleAsync();
+
+        Assert.That(updated.Status, Is.EqualTo(EntityStatus.Active));
+    }
+
+    [Test]
+    public async Task DeactivateVaccineAsync_WhenVaccineTypeAlreadyInactive_ThrowsBusinessRuleException()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var vaccineType = new VaccineType
+        {
+            Name = "BCG Vaccine",
+            Code = "BCG",
+            DiseaseTarget = "Tuberculosis",
+            Status = EntityStatus.Inactive
+        };
+        dbContext.VaccineTypes.Add(vaccineType);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+
+        Assert.ThrowsAsync<BusinessRuleException>(async () =>
+            await service.DeactivateVaccineAsync(vaccineType.Id));
+    }
+
+    [Test]
+    public async Task ActivateVaccineAsync_WhenVaccineTypeNotFound_ThrowsNotFoundException()
+    {
+        await using var dbContext = CreateDbContext();
+        var service = CreateService(dbContext);
+
+        Assert.ThrowsAsync<NotFoundException>(async () =>
+            await service.ActivateVaccineAsync(Guid.NewGuid()));
     }
 
     private static VaccinesService CreateService(VaccineTrackerDbContext dbContext)
