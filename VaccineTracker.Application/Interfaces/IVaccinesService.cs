@@ -9,6 +9,10 @@ public interface IVaccinesService
         GetVaccinesRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<VaccineResponse> GetVaccineAsync(
+        Guid vaccineTypeId,
+        CancellationToken cancellationToken = default);
+
     Task<VaccineResponse> CreateVaccineAsync(
         CreateVaccineRequest request,
         CancellationToken cancellationToken = default);

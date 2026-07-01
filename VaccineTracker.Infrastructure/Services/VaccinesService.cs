@@ -89,6 +89,25 @@ public sealed class VaccinesService : IVaccinesService
             totalPages);
     }
 
+    public async Task<VaccineResponse> GetVaccineAsync(
+        Guid vaccineTypeId,
+        CancellationToken cancellationToken = default)
+    {
+        var vaccineType = await _dbContext.VaccineTypes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                vaccineType => vaccineType.Id == vaccineTypeId &&
+                    !vaccineType.IsDeleted,
+                cancellationToken);
+
+        if (vaccineType is null)
+        {
+            throw new NotFoundException("Vaccine type", vaccineTypeId);
+        }
+
+        return ToResponse(vaccineType);
+    }
+
     public async Task<VaccineResponse> CreateVaccineAsync(
         CreateVaccineRequest request,
         CancellationToken cancellationToken = default)
@@ -124,15 +143,7 @@ public sealed class VaccinesService : IVaccinesService
             vaccineType.Id,
             vaccineType.Code);
 
-        return new VaccineResponse(
-            vaccineType.Id,
-            vaccineType.Name,
-            vaccineType.Code,
-            vaccineType.DiseaseTarget,
-            vaccineType.Description,
-            vaccineType.Status.ToString(),
-            vaccineType.CreatedAt,
-            vaccineType.UpdatedAt);
+        return ToResponse(vaccineType);
     }
 
     public async Task<VaccineResponse> UpdateVaccineAsync(
@@ -179,15 +190,7 @@ public sealed class VaccinesService : IVaccinesService
             "Vaccine type {VaccineTypeId} updated.",
             vaccineType.Id);
 
-        return new VaccineResponse(
-            vaccineType.Id,
-            vaccineType.Name,
-            vaccineType.Code,
-            vaccineType.DiseaseTarget,
-            vaccineType.Description,
-            vaccineType.Status.ToString(),
-            vaccineType.CreatedAt,
-            vaccineType.UpdatedAt);
+        return ToResponse(vaccineType);
     }
 
     public async Task<VaccineResponse> ActivateVaccineAsync(
@@ -242,15 +245,7 @@ public sealed class VaccinesService : IVaccinesService
             vaccineType.Id,
             vaccineType.Status);
 
-        return new VaccineResponse(
-            vaccineType.Id,
-            vaccineType.Name,
-            vaccineType.Code,
-            vaccineType.DiseaseTarget,
-            vaccineType.Description,
-            vaccineType.Status.ToString(),
-            vaccineType.CreatedAt,
-            vaccineType.UpdatedAt);
+        return ToResponse(vaccineType);
     }
 
     private static bool TryParseEntityStatus(string status, out EntityStatus value)
@@ -264,5 +259,18 @@ public sealed class VaccinesService : IVaccinesService
         return string.IsNullOrWhiteSpace(value)
             ? null
             : value.Trim();
+    }
+
+    private static VaccineResponse ToResponse(VaccineType vaccineType)
+    {
+        return new VaccineResponse(
+            vaccineType.Id,
+            vaccineType.Name,
+            vaccineType.Code,
+            vaccineType.DiseaseTarget,
+            vaccineType.Description,
+            vaccineType.Status.ToString(),
+            vaccineType.CreatedAt,
+            vaccineType.UpdatedAt);
     }
 }

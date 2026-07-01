@@ -153,6 +153,43 @@ public sealed class VaccinesServiceTests
     }
 
     [Test]
+    public async Task GetVaccineAsync_WhenVaccineTypeExists_ReturnsVaccineType()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var vaccineType = new VaccineType
+        {
+            Name = "BCG Vaccine",
+            Code = "BCG",
+            DiseaseTarget = "Tuberculosis",
+            Status = EntityStatus.Active
+        };
+        dbContext.VaccineTypes.Add(vaccineType);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+
+        var result = await service.GetVaccineAsync(vaccineType.Id);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Id, Is.EqualTo(vaccineType.Id));
+            Assert.That(result.Code, Is.EqualTo("BCG"));
+            Assert.That(result.DiseaseTarget, Is.EqualTo("Tuberculosis"));
+        });
+    }
+
+    [Test]
+    public async Task GetVaccineAsync_WhenVaccineTypeNotFound_ThrowsNotFoundException()
+    {
+        await using var dbContext = CreateDbContext();
+        var service = CreateService(dbContext);
+
+        Assert.ThrowsAsync<NotFoundException>(async () =>
+            await service.GetVaccineAsync(Guid.NewGuid()));
+    }
+
+    [Test]
     public async Task UpdateVaccineAsync_WithValidRequest_UpdatesVaccineType()
     {
         await using var dbContext = CreateDbContext();

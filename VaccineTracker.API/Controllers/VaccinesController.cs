@@ -33,6 +33,21 @@ public sealed class VaccinesController : ControllerBase
         return Ok(vaccines);
     }
 
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(VaccineResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<VaccineResponse>> GetVaccine(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var vaccine = await _vaccinesService.GetVaccineAsync(
+            id,
+            cancellationToken);
+
+        return Ok(vaccine);
+    }
+
     [Authorize(Policy = AuthorizationPolicies.PlatformAdmin)]
     [HttpPost]
     [ProducesResponseType(typeof(VaccineResponse), StatusCodes.Status201Created)]
@@ -50,7 +65,7 @@ public sealed class VaccinesController : ControllerBase
             cancellationToken);
 
         return CreatedAtAction(
-            nameof(GetVaccines),
+            nameof(GetVaccine),
             new { id = vaccine.Id },
             vaccine);
     }
