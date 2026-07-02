@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using VaccineTracker.Application.Exceptions;
 using VaccineTracker.Application.Interfaces;
 using VaccineTracker.Contracts.Common;
 using VaccineTracker.Contracts.Hospitals;
@@ -73,27 +74,37 @@ public sealed class HospitalsService : IHospitalsService
             totalPages);
     }
 
-    public async Task<HospitalResponse?> GetHospitalAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<HospitalResponse> GetHospitalAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var hospital = await _dbContext.Hospitals
             .AsNoTracking()
             .FirstOrDefaultAsync(hospital => hospital.Id == id && !hospital.IsDeleted, cancellationToken);
 
-        return hospital is null ? null : ToResponse(hospital);
+        if (hospital is null)
+        {
+            throw new NotFoundException("Hospital", id);
+        }
+
+        return ToResponse(hospital);
     }
 
     public async Task<HospitalResponse> CreateHospitalAsync(
         CreateHospitalRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new ValidationException("Hospital name is required.");
+        }
+
         var hospital = new Hospital
         {
             Name = request.Name.Trim(),
-            RegistrationNumber = request.RegistrationNumber,
-            ContactPhone = request.ContactPhone,
-            ContactEmail = request.ContactEmail,
+            RegistrationNumber = TrimOrNull(request.RegistrationNumber),
+            ContactPhone = TrimOrNull(request.ContactPhone),
+            ContactEmail = TrimOrNull(request.ContactEmail),
             LocationId = request.LocationId,
-            OpeningHours = request.OpeningHours,
+            OpeningHours = TrimOrNull(request.OpeningHours),
             IsActive = true
         };
 
@@ -103,25 +114,30 @@ public sealed class HospitalsService : IHospitalsService
         return ToResponse(hospital);
     }
 
-    public async Task<HospitalResponse?> UpdateHospitalAsync(
+    public async Task<HospitalResponse> UpdateHospitalAsync(
         Guid id,
         UpdateHospitalRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new ValidationException("Hospital name is required.");
+        }
+
         var hospital = await _dbContext.Hospitals
             .FirstOrDefaultAsync(hospital => hospital.Id == id && !hospital.IsDeleted, cancellationToken);
 
         if (hospital is null)
         {
-            return null;
+            throw new NotFoundException("Hospital", id);
         }
 
         hospital.Name = request.Name.Trim();
-        hospital.RegistrationNumber = request.RegistrationNumber;
-        hospital.ContactPhone = request.ContactPhone;
-        hospital.ContactEmail = request.ContactEmail;
+        hospital.RegistrationNumber = TrimOrNull(request.RegistrationNumber);
+        hospital.ContactPhone = TrimOrNull(request.ContactPhone);
+        hospital.ContactEmail = TrimOrNull(request.ContactEmail);
         hospital.LocationId = request.LocationId;
-        hospital.OpeningHours = request.OpeningHours;
+        hospital.OpeningHours = TrimOrNull(request.OpeningHours);
         hospital.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -129,17 +145,17 @@ public sealed class HospitalsService : IHospitalsService
         return ToResponse(hospital);
     }
 
-    public async Task<bool> ActivateHospitalAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<HospitalResponse> ActivateHospitalAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await SetHospitalActiveStateAsync(id, true, cancellationToken);
     }
 
-    public async Task<bool> DeactivateHospitalAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<HospitalResponse> DeactivateHospitalAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await SetHospitalActiveStateAsync(id, false, cancellationToken);
     }
 
-    private async Task<bool> SetHospitalActiveStateAsync(
+    private async Task<HospitalResponse> SetHospitalActiveStateAsync(
         Guid id,
         bool isActive,
         CancellationToken cancellationToken)
@@ -149,7 +165,15 @@ public sealed class HospitalsService : IHospitalsService
 
         if (hospital is null)
         {
-            return false;
+            throw new NotFoundException("Hospital", id);
+        }
+
+        if (hospital.IsActive == isActive)
+        {
+            var status = isActive ? "active" : "inactive";
+
+            throw new BusinessRuleException(
+                $"Hospital is already {status}.");
         }
 
         hospital.IsActive = isActive;
@@ -157,7 +181,14 @@ public sealed class HospitalsService : IHospitalsService
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return true;
+        return ToResponse(hospital);
+    }
+
+    private static string? TrimOrNull(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
     }
 
     private static HospitalResponse ToResponse(Hospital hospital)

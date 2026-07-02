@@ -39,7 +39,7 @@ public sealed class HospitalsController : ControllerBase
     {
         var hospital = await _hospitalsService.GetHospitalAsync(id, cancellationToken);
 
-        return hospital is null ? NotFound() : Ok(hospital);
+        return Ok(hospital);
     }
 
     [HttpPost]
@@ -49,11 +49,6 @@ public sealed class HospitalsController : ControllerBase
         CreateHospitalRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            return BadRequest("Hospital name is required.");
-        }
-
         var hospital = await _hospitalsService.CreateHospitalAsync(request, cancellationToken);
 
         return CreatedAtAction(nameof(GetHospital), new { id = hospital.Id }, hospital);
@@ -68,33 +63,30 @@ public sealed class HospitalsController : ControllerBase
         UpdateHospitalRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            return BadRequest("Hospital name is required.");
-        }
-
         var hospital = await _hospitalsService.UpdateHospitalAsync(id, request, cancellationToken);
 
-        return hospital is null ? NotFound() : Ok(hospital);
+        return Ok(hospital);
     }
 
     [HttpPatch("{id:guid}/activate")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(HospitalResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ActivateHospital(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<HospitalResponse>> ActivateHospital(Guid id, CancellationToken cancellationToken)
     {
-        var hospitalExists = await _hospitalsService.ActivateHospitalAsync(id, cancellationToken);
+        var hospital = await _hospitalsService.ActivateHospitalAsync(id, cancellationToken);
 
-        return hospitalExists ? NoContent() : NotFound();
+        return Ok(hospital);
     }
 
     [HttpPatch("{id:guid}/deactivate")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(HospitalResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeactivateHospital(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<HospitalResponse>> DeactivateHospital(Guid id, CancellationToken cancellationToken)
     {
-        var hospitalExists = await _hospitalsService.DeactivateHospitalAsync(id, cancellationToken);
+        var hospital = await _hospitalsService.DeactivateHospitalAsync(id, cancellationToken);
 
-        return hospitalExists ? NoContent() : NotFound();
+        return Ok(hospital);
     }
 }
