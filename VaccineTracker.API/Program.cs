@@ -117,6 +117,7 @@ builder.Services.AddScoped<IVaccineProductsService, VaccineProductsService>();
 builder.Services.AddScoped<IVaccineScheduleItemsService, VaccineScheduleItemsService>();
 builder.Services.AddScoped<IVaccinationRecordsService, VaccinationRecordsService>();
 builder.Services.AddScoped<INextVaccinationDueService, NextVaccinationDueService>();
+builder.Services.AddScoped<INotificationOutboxService, NotificationOutboxService>();
 builder.Services.AddScoped<IRequestContext, RequestContext>();
 builder.Services.AddScoped<ILoginAuditService, LoginAuditService>();
 
