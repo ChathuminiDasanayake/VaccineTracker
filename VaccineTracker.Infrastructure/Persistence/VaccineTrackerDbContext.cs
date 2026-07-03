@@ -22,6 +22,7 @@ public sealed class VaccineTrackerDbContext : DbContext
     public DbSet<VaccineScheduleItem> VaccineScheduleItems => Set<VaccineScheduleItem>();
     public DbSet<VaccinationRecord> VaccinationRecords => Set<VaccinationRecord>();
     public DbSet<VaccineManufacturer> VaccineManufacturers => Set<VaccineManufacturer>();
+    public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -206,6 +207,48 @@ public sealed class VaccineTrackerDbContext : DbContext
 
             entity.Property(manufacturer => manufacturer.Description)
                 .HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<NotificationOutbox>(entity =>
+        {
+            entity.Property(notification => notification.Recipient)
+                .HasMaxLength(254);
+
+            entity.Property(notification => notification.Subject)
+                .HasMaxLength(300);
+
+            entity.Property(notification => notification.PayloadJson)
+                .HasMaxLength(4000);
+
+            entity.Property(notification => notification.FailureReason)
+                .HasMaxLength(1000);
+
+            entity.HasIndex(notification => new
+            {
+                notification.Status,
+                notification.SendAfterUtc
+            });
+
+            entity.HasIndex(notification => notification.PatientId);
+
+            entity.HasIndex(notification => notification.VaccineScheduleItemId);
+
+            entity.HasIndex(notification => notification.VaccinationRecordId);
+
+            entity.HasOne(notification => notification.Patient)
+                .WithMany()
+                .HasForeignKey(notification => notification.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(notification => notification.VaccineScheduleItem)
+                .WithMany()
+                .HasForeignKey(notification => notification.VaccineScheduleItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(notification => notification.VaccinationRecord)
+                .WithMany()
+                .HasForeignKey(notification => notification.VaccinationRecordId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
 
