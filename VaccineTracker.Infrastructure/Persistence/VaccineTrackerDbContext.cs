@@ -23,6 +23,7 @@ public sealed class VaccineTrackerDbContext : DbContext
     public DbSet<VaccinationRecord> VaccinationRecords => Set<VaccinationRecord>();
     public DbSet<VaccineManufacturer> VaccineManufacturers => Set<VaccineManufacturer>();
     public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
+    public DbSet<Document> Documents => Set<Document>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -251,6 +252,45 @@ public sealed class VaccineTrackerDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<Document>(entity =>
+        {
+            entity.Property(document => document.FileName)
+                .HasMaxLength(255);
+
+            entity.Property(document => document.BlobName)
+                .HasMaxLength(500);
+
+            entity.Property(document => document.ContentType)
+                .HasMaxLength(100);
+
+            entity.HasIndex(document => document.HospitalId);
+
+            entity.HasIndex(document => document.PatientId);
+
+            entity.HasIndex(document => document.VaccinationRecordId);
+
+            entity.HasIndex(document => new
+            {
+                document.HospitalId,
+                document.Type,
+                document.Status
+            });
+
+            entity.HasOne(document => document.Hospital)
+                .WithMany()
+                .HasForeignKey(document => document.HospitalId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(document => document.Patient)
+                .WithMany()
+                .HasForeignKey(document => document.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(document => document.VaccinationRecord)
+                .WithMany()
+                .HasForeignKey(document => document.VaccinationRecordId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
     }
 }
