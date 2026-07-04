@@ -263,6 +263,9 @@ public sealed class VaccineTrackerDbContext : DbContext
             entity.Property(document => document.ContentType)
                 .HasMaxLength(100);
 
+            entity.HasIndex(document => document.BlobName)
+                .IsUnique();
+
             entity.HasIndex(document => document.HospitalId);
 
             entity.HasIndex(document => document.PatientId);
