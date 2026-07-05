@@ -10,3 +10,5 @@ VaccineTracker.API/Logs/
 # Test results and coverage
 **/TestResults/
 *.cobertura.xml
+
+.vscode/settings.json

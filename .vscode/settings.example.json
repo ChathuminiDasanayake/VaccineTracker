@@ -1,0 +1,4 @@
+{
+  "appService.defaultWebAppToDeploy": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Web/sites/<app-service-name>",
+  "appService.deploySubpath": "VaccineTracker.API\\bin\\Release\\net8.0\\publish"
+}
