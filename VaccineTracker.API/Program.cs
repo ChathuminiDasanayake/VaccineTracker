@@ -118,7 +118,21 @@ builder.Services.AddScoped<IVaccineScheduleItemsService, VaccineScheduleItemsSer
 builder.Services.AddScoped<IVaccinationRecordsService, VaccinationRecordsService>();
 builder.Services.AddScoped<INextVaccinationDueService, NextVaccinationDueService>();
 builder.Services.AddScoped<INotificationOutboxService, NotificationOutboxService>();
-builder.Services.AddScoped<IDocumentStorageService, LocalDocumentStorageService>();
+builder.Services.Configure<BlobStorageSettings>(
+    builder.Configuration.GetSection(BlobStorageSettings.SectionName));
+
+if (string.Equals(
+        builder.Configuration["DocumentStorage:Provider"],
+        "AzureBlob",
+        StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IDocumentStorageService, AzureBlobDocumentStorageService>();
+}
+else
+{
+    builder.Services.AddScoped<IDocumentStorageService, LocalDocumentStorageService>();
+}
+
 builder.Services.AddScoped<IDocumentsService, DocumentsService>();
 builder.Services.AddScoped<IRequestContext, RequestContext>();
 builder.Services.AddScoped<ILoginAuditService, LoginAuditService>();
