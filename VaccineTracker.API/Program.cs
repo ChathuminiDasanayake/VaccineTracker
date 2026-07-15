@@ -94,6 +94,9 @@ builder.Services.AddAuthorization(options =>
             Role.HospitalAdmin.ToString(),
             Role.Doctor.ToString(),
             Role.Nurse.ToString()));
+
+    options.AddPolicy(AuthorizationPolicies.PatientSelfService, policy =>
+        policy.RequireRole(Role.Patient.ToString()));
 });
 
 builder.Services.AddRateLimiter(options =>

@@ -9,7 +9,15 @@ public interface IVaccinationRecordsService
         GetVaccinationRecordsRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<PagedResponse<VaccinationRecordResponse>> GetMyRecordsAsync(
+        GetVaccinationRecordsRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<VaccinationRecordResponse> GetRecordAsync(
+        Guid recordId,
+        CancellationToken cancellationToken = default);
+
+    Task<VaccinationRecordResponse> GetMyRecordAsync(
         Guid recordId,
         CancellationToken cancellationToken = default);
 

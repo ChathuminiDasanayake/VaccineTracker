@@ -24,6 +24,7 @@ public sealed class VaccineTrackerDbContext : DbContext
     public DbSet<VaccineManufacturer> VaccineManufacturers => Set<VaccineManufacturer>();
     public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<PatientPortalAccess> PatientPortalAccesses => Set<PatientPortalAccess>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -105,6 +106,29 @@ public sealed class VaccineTrackerDbContext : DbContext
             entity.HasOne(patient => patient.Hospital)
                 .WithMany()
                 .HasForeignKey(patient => patient.HospitalId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PatientPortalAccess>(entity =>
+        {
+            entity.HasIndex(access => new
+                {
+                    access.UserId,
+                    access.PatientId
+                })
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+
+            entity.HasIndex(access => access.PatientId);
+
+            entity.HasOne(access => access.User)
+                .WithMany()
+                .HasForeignKey(access => access.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(access => access.Patient)
+                .WithMany()
+                .HasForeignKey(access => access.PatientId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

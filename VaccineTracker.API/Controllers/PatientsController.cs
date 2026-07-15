@@ -127,4 +127,28 @@ public sealed class PatientsController : ControllerBase
 
         return Ok(patient);
     }
+
+    [HttpPost("{id:guid}/portal-access")]
+    [Authorize(Policy = AuthorizationPolicies.HospitalAdmin)]
+    [ProducesResponseType(typeof(PatientPortalAccessResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PatientPortalAccessResponse>> LinkPatientPortalAccess(
+        Guid id,
+        LinkPatientPortalAccessRequest request,
+        CancellationToken cancellationToken)
+    {
+        var access = await _patientsService.LinkPatientPortalAccessAsync(
+            id,
+            request,
+            cancellationToken);
+
+        return CreatedAtAction(
+            nameof(GetPatient),
+            new { id },
+            access);
+    }
 }

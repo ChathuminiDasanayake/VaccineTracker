@@ -30,4 +30,9 @@ public interface IPatientsService
         Guid patientId,
         UpdatePatientStatusRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<PatientPortalAccessResponse> LinkPatientPortalAccessAsync(
+        Guid patientId,
+        LinkPatientPortalAccessRequest request,
+        CancellationToken cancellationToken = default);
 }

@@ -309,6 +309,101 @@ public sealed class PatientsService : IPatientsService
         return ToSummaryResponse(patient);
     }
 
+    public async Task<PatientPortalAccessResponse> LinkPatientPortalAccessAsync(
+        Guid patientId,
+        LinkPatientPortalAccessRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.UserId == Guid.Empty)
+        {
+            throw new ValidationException("User ID is required.");
+        }
+
+        var patient = await _dbContext.Patients
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                patient => patient.Id == patientId && !patient.IsDeleted,
+                cancellationToken);
+
+        if (patient is null)
+        {
+            throw new NotFoundException("Patient", patientId);
+        }
+
+        EnsureHospitalAccess(patient.HospitalId);
+
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                user => user.Id == request.UserId && !user.IsDeleted,
+                cancellationToken);
+
+        if (user is null)
+        {
+            throw new NotFoundException("User", request.UserId);
+        }
+
+        if (user.Status != EntityStatus.Active)
+        {
+            throw new BusinessRuleException(
+                "Only active users can be linked to patient portal access.");
+        }
+
+        if (!user.Roles.Contains(Role.Patient))
+        {
+            throw new ValidationException(
+                "Only users with the Patient role can be linked to patient portal access.");
+        }
+
+        if (user.HospitalId.HasValue && user.HospitalId.Value != patient.HospitalId)
+        {
+            throw new ForbiddenException(
+                $"User '{user.Id}' cannot access patient '{patient.Id}'.");
+        }
+
+        var existingAccess = await _dbContext.PatientPortalAccesses
+            .FirstOrDefaultAsync(
+                access =>
+                    access.UserId == user.Id &&
+                    access.PatientId == patient.Id,
+                cancellationToken);
+
+        if (existingAccess is not null)
+        {
+            if (!existingAccess.IsDeleted)
+            {
+                throw new ConflictException(
+                    "This user already has portal access to the patient.");
+            }
+
+            existingAccess.IsDeleted = false;
+            existingAccess.UpdatedAt = DateTime.UtcNow;
+            existingAccess.UpdatedBy = _currentUser.UserId.ToString();
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return ToPortalAccessResponse(existingAccess);
+        }
+
+        var portalAccess = new PatientPortalAccess
+        {
+            UserId = user.Id,
+            PatientId = patient.Id,
+            CreatedBy = _currentUser.UserId.ToString()
+        };
+
+        _dbContext.PatientPortalAccesses.Add(portalAccess);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Patient portal access {AccessId} created for patient {PatientId} and user {UserId}.",
+            portalAccess.Id,
+            portalAccess.PatientId,
+            portalAccess.UserId);
+
+        return ToPortalAccessResponse(portalAccess);
+    }
+
     private Guid? ResolveHospitalId()
     {
         return _currentUser.HospitalId;
@@ -439,6 +534,16 @@ public sealed class PatientsService : IPatientsService
             patient.Status.ToString(),
             patient.CreatedAt,
             patient.UpdatedAt);
+    }
+
+    private static PatientPortalAccessResponse ToPortalAccessResponse(
+        PatientPortalAccess access)
+    {
+        return new PatientPortalAccessResponse(
+            access.Id,
+            access.PatientId,
+            access.UserId,
+            access.CreatedAt);
     }
 
     private async Task<string> GenerateUniquePatientNumberAsync(

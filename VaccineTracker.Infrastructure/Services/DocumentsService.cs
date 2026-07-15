@@ -107,6 +107,87 @@ public sealed class DocumentsService : IDocumentsService
             totalPages);
     }
 
+    public async Task<PagedResponse<DocumentResponse>> GetMyDocumentsAsync(
+        GetDocumentsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EnsurePatientRole();
+
+        var patientIds = await GetAccessiblePatientIdsAsync(cancellationToken);
+
+        if (patientIds.Count == 0)
+        {
+            return new PagedResponse<DocumentResponse>(
+                [],
+                request.PageNumber,
+                request.PageSize,
+                0,
+                0);
+        }
+
+        var query = _dbContext.Documents
+            .AsNoTracking()
+            .Where(document =>
+                !document.IsDeleted &&
+                document.Status == EntityStatus.Active &&
+                ((document.PatientId.HasValue &&
+                    patientIds.Contains(document.PatientId.Value)) ||
+                (document.VaccinationRecord != null &&
+                    patientIds.Contains(document.VaccinationRecord.PatientId))));
+
+        if (request.PatientId.HasValue)
+        {
+            if (!patientIds.Contains(request.PatientId.Value))
+            {
+                throw new ForbiddenException(
+                    $"You cannot access patient '{request.PatientId.Value}'.");
+            }
+
+            query = query.Where(document =>
+                document.PatientId == request.PatientId.Value ||
+                (document.VaccinationRecord != null &&
+                    document.VaccinationRecord.PatientId == request.PatientId.Value));
+        }
+
+        if (request.VaccinationRecordId.HasValue)
+        {
+            query = query.Where(document =>
+                document.VaccinationRecordId == request.VaccinationRecordId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Type))
+        {
+            if (!TryParseDocumentType(request.Type, out var type))
+            {
+                throw new ValidationException(
+                    $"Document type '{request.Type}' is invalid.");
+            }
+
+            query = query.Where(document => document.Type == type);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var documents = await query
+            .OrderByDescending(document => document.CreatedAt)
+            .ThenBy(document => document.Id)
+            .Skip((request.PageNumber - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(document => ToResponse(document))
+            .ToListAsync(cancellationToken);
+
+        var totalPages = totalCount == 0
+            ? 0
+            : (totalCount + request.PageSize - 1) / request.PageSize;
+
+        return new PagedResponse<DocumentResponse>(
+            documents,
+            request.PageNumber,
+            request.PageSize,
+            totalCount,
+            totalPages);
+    }
+
     public async Task<DocumentResponse> GetDocumentAsync(
         Guid documentId,
         CancellationToken cancellationToken = default)
@@ -114,6 +195,17 @@ public sealed class DocumentsService : IDocumentsService
         var document = await GetDocumentEntityAsync(
             documentId,
             asNoTracking: true,
+            cancellationToken);
+
+        return ToResponse(document);
+    }
+
+    public async Task<DocumentResponse> GetMyDocumentAsync(
+        Guid documentId,
+        CancellationToken cancellationToken = default)
+    {
+        var document = await GetMyDocumentEntityAsync(
+            documentId,
             cancellationToken);
 
         return ToResponse(document);
@@ -197,6 +289,21 @@ public sealed class DocumentsService : IDocumentsService
             cancellationToken);
     }
 
+    public async Task<DocumentStorageFile> DownloadMyDocumentAsync(
+        Guid documentId,
+        CancellationToken cancellationToken = default)
+    {
+        var document = await GetMyDocumentEntityAsync(
+            documentId,
+            cancellationToken);
+
+        return await _documentStorageService.OpenReadAsync(
+            document.BlobName,
+            document.FileName,
+            document.ContentType,
+            cancellationToken);
+    }
+
     public async Task DeleteDocumentAsync(
         Guid documentId,
         CancellationToken cancellationToken = default)
@@ -246,6 +353,61 @@ public sealed class DocumentsService : IDocumentsService
             _currentUser.Role,
             Role.PlatformAdmin.ToString(),
             StringComparison.Ordinal);
+    }
+
+    private void EnsurePatientRole()
+    {
+        if (!string.Equals(
+                _currentUser.Role,
+                Role.Patient.ToString(),
+                StringComparison.Ordinal))
+        {
+            throw new ForbiddenException("Patient access is required.");
+        }
+    }
+
+    private async Task<List<Guid>> GetAccessiblePatientIdsAsync(
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.PatientPortalAccesses
+            .AsNoTracking()
+            .Where(access =>
+                access.UserId == _currentUser.UserId &&
+                !access.IsDeleted &&
+                !access.Patient.IsDeleted &&
+                access.Patient.Status == EntityStatus.Active)
+            .Select(access => access.PatientId)
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<Document> GetMyDocumentEntityAsync(
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        EnsurePatientRole();
+
+        var patientIds = await GetAccessiblePatientIdsAsync(cancellationToken);
+
+        var document = await _dbContext.Documents
+            .AsNoTracking()
+            .Include(document => document.VaccinationRecord)
+            .FirstOrDefaultAsync(
+                document =>
+                    document.Id == documentId &&
+                    !document.IsDeleted &&
+                    document.Status == EntityStatus.Active &&
+                    ((document.PatientId.HasValue &&
+                        patientIds.Contains(document.PatientId.Value)) ||
+                    (document.VaccinationRecord != null &&
+                        patientIds.Contains(document.VaccinationRecord.PatientId))),
+                cancellationToken);
+
+        if (document is null)
+        {
+            throw new NotFoundException("Document", documentId);
+        }
+
+        return document;
     }
 
     private async Task<Document> GetDocumentEntityAsync(

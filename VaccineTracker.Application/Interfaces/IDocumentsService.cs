@@ -9,7 +9,15 @@ public interface IDocumentsService
         GetDocumentsRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<PagedResponse<DocumentResponse>> GetMyDocumentsAsync(
+        GetDocumentsRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<DocumentResponse> GetDocumentAsync(
+        Guid documentId,
+        CancellationToken cancellationToken = default);
+
+    Task<DocumentResponse> GetMyDocumentAsync(
         Guid documentId,
         CancellationToken cancellationToken = default);
 
@@ -22,6 +30,10 @@ public interface IDocumentsService
         CancellationToken cancellationToken = default);
 
     Task<DocumentStorageFile> DownloadDocumentAsync(
+        Guid documentId,
+        CancellationToken cancellationToken = default);
+
+    Task<DocumentStorageFile> DownloadMyDocumentAsync(
         Guid documentId,
         CancellationToken cancellationToken = default);
 

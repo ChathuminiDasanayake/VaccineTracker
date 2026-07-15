@@ -6,4 +6,5 @@ public static class AuthorizationPolicies
     public const string HospitalAdmin = nameof(HospitalAdmin);
     public const string HospitalStaff = nameof(HospitalStaff);
     public const string ViewPatientSensitiveData = nameof(ViewPatientSensitiveData);
+    public const string PatientSelfService = nameof(PatientSelfService);
 }

@@ -118,6 +118,96 @@ public sealed class VaccinationRecordsService : IVaccinationRecordsService
             totalPages);
     }
 
+    public async Task<PagedResponse<VaccinationRecordResponse>> GetMyRecordsAsync(
+        GetVaccinationRecordsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EnsurePatientRole();
+
+        var patientIds = await GetAccessiblePatientIdsAsync(cancellationToken);
+        var pageNumber = Math.Max(request.PageNumber, 1);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
+        if (patientIds.Count == 0)
+        {
+            return new PagedResponse<VaccinationRecordResponse>(
+                [],
+                pageNumber,
+                pageSize,
+                0,
+                0);
+        }
+
+        var query = QueryRecordDetails()
+            .AsNoTracking()
+            .Where(record =>
+                patientIds.Contains(record.PatientId) &&
+                !record.IsDeleted);
+
+        if (request.PatientId.HasValue)
+        {
+            if (!patientIds.Contains(request.PatientId.Value))
+            {
+                throw new ForbiddenException(
+                    $"You cannot access patient '{request.PatientId.Value}'.");
+            }
+
+            query = query.Where(record => record.PatientId == request.PatientId.Value);
+        }
+
+        if (request.VaccineProductId.HasValue)
+        {
+            query = query.Where(record => record.VaccineProductId == request.VaccineProductId.Value);
+        }
+
+        if (request.VaccineScheduleItemId.HasValue)
+        {
+            query = query.Where(record => record.VaccineScheduleItemId == request.VaccineScheduleItemId.Value);
+        }
+
+        if (request.AdministeredFrom.HasValue)
+        {
+            query = query.Where(record => record.AdministeredDate >= request.AdministeredFrom.Value);
+        }
+
+        if (request.AdministeredTo.HasValue)
+        {
+            query = query.Where(record => record.AdministeredDate <= request.AdministeredTo.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            if (!TryParseRecordStatus(request.Status, out var status))
+            {
+                throw new ValidationException(
+                    $"Vaccination record status '{request.Status}' is invalid.");
+            }
+
+            query = query.Where(record => record.Status == status);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var records = await query
+            .OrderByDescending(record => record.AdministeredDate)
+            .ThenByDescending(record => record.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(record => ToResponse(record))
+            .ToListAsync(cancellationToken);
+
+        var totalPages = totalCount == 0
+            ? 0
+            : (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        return new PagedResponse<VaccinationRecordResponse>(
+            records,
+            pageNumber,
+            pageSize,
+            totalCount,
+            totalPages);
+    }
+
     public async Task<VaccinationRecordResponse> GetRecordAsync(
         Guid recordId,
         CancellationToken cancellationToken = default)
@@ -129,6 +219,31 @@ public sealed class VaccinationRecordsService : IVaccinationRecordsService
             .FirstOrDefaultAsync(
                 record => record.Id == recordId &&
                     record.HospitalId == hospitalId &&
+                    !record.IsDeleted,
+                cancellationToken);
+
+        if (record is null)
+        {
+            throw new NotFoundException("Vaccination record", recordId);
+        }
+
+        return ToResponse(record);
+    }
+
+    public async Task<VaccinationRecordResponse> GetMyRecordAsync(
+        Guid recordId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsurePatientRole();
+
+        var patientIds = await GetAccessiblePatientIdsAsync(cancellationToken);
+
+        var record = await QueryRecordDetails()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                record =>
+                    record.Id == recordId &&
+                    patientIds.Contains(record.PatientId) &&
                     !record.IsDeleted,
                 cancellationToken);
 
@@ -342,6 +457,31 @@ public sealed class VaccinationRecordsService : IVaccinationRecordsService
             _currentUser.Role,
             Role.PlatformAdmin.ToString(),
             StringComparison.Ordinal);
+    }
+
+    private void EnsurePatientRole()
+    {
+        if (!string.Equals(
+                _currentUser.Role,
+                Role.Patient.ToString(),
+                StringComparison.Ordinal))
+        {
+            throw new ForbiddenException("Patient access is required.");
+        }
+    }
+
+    private async Task<List<Guid>> GetAccessiblePatientIdsAsync(
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.PatientPortalAccesses
+            .AsNoTracking()
+            .Where(access =>
+                access.UserId == _currentUser.UserId &&
+                !access.IsDeleted &&
+                !access.Patient.IsDeleted &&
+                access.Patient.Status == EntityStatus.Active)
+            .Select(access => access.PatientId)
+            .ToListAsync(cancellationToken);
     }
 
     private async Task<Patient> GetPatientForCurrentHospitalAsync(
