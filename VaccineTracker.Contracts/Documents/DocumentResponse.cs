@@ -10,5 +10,6 @@ public record DocumentResponse(
     long SizeInBytes,
     string Type,
     string Status,
+    string ProcessingStatus,
     DateTime CreatedAt,
     DateTime? UpdatedAt);

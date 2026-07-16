@@ -259,6 +259,7 @@ public sealed class DocumentsService : IDocumentsService
             SizeInBytes = sizeInBytes,
             Type = type,
             Status = EntityStatus.Active,
+            ProcessingStatus = DocumentProcessingStatus.Uploaded,
             CreatedBy = _currentUser.UserId.ToString()
         };
 
@@ -540,6 +541,7 @@ public sealed class DocumentsService : IDocumentsService
             document.SizeInBytes,
             document.Type.ToString(),
             document.Status.ToString(),
+            document.ProcessingStatus.ToString(),
             document.CreatedAt,
             document.UpdatedAt);
     }

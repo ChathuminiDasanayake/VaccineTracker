@@ -23,6 +23,9 @@ public sealed class Document : BaseAuditableEntity
 
     public EntityStatus Status { get; set; } = EntityStatus.Active;
 
+    public DocumentProcessingStatus ProcessingStatus { get; set; } =
+        DocumentProcessingStatus.Uploaded;
+
     public Hospital Hospital { get; set; } = null!;
 
     public Patient? Patient { get; set; }

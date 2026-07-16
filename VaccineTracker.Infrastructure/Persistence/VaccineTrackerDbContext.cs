@@ -303,6 +303,12 @@ public sealed class VaccineTrackerDbContext : DbContext
                 document.Status
             });
 
+            entity.HasIndex(document => new
+            {
+                document.HospitalId,
+                document.ProcessingStatus
+            });
+
             entity.HasOne(document => document.Hospital)
                 .WithMany()
                 .HasForeignKey(document => document.HospitalId)
