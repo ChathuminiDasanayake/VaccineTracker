@@ -211,6 +211,97 @@ public sealed class VaccinationRecordsServiceTests
     }
 
     [Test]
+    public async Task GetMyRecordsAsync_ReturnsOnlyLinkedPatientRecords()
+    {
+        await using var dbContext = CreateDbContext();
+        var patientUserId = Guid.NewGuid();
+
+        var linkedSeed = await SeedBaseDataAsync(
+            dbContext,
+            patientNumber: "PT-LINKED",
+            productCode: "LINKED-PRODUCT");
+        await AddVaccinationRecordAsync(dbContext, linkedSeed);
+
+        var otherSeed = await SeedBaseDataAsync(
+            dbContext,
+            patientNumber: "PT-OTHER",
+            productCode: "OTHER-PRODUCT");
+        await AddVaccinationRecordAsync(dbContext, otherSeed);
+
+        dbContext.PatientPortalAccesses.Add(new PatientPortalAccess
+        {
+            UserId = patientUserId,
+            PatientId = linkedSeed.Patient.Id
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId: null,
+            role: Role.Patient,
+            userId: patientUserId);
+
+        var result = await service.GetMyRecordsAsync(
+            new GetVaccinationRecordsRequest());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Items, Has.Count.EqualTo(1));
+            Assert.That(result.Items.Single().PatientId, Is.EqualTo(linkedSeed.Patient.Id));
+        });
+    }
+
+    [Test]
+    public async Task GetMyRecordAsync_WhenRecordBelongsToUnlinkedPatient_ThrowsNotFoundException()
+    {
+        await using var dbContext = CreateDbContext();
+        var patientUserId = Guid.NewGuid();
+
+        var linkedSeed = await SeedBaseDataAsync(
+            dbContext,
+            patientNumber: "PT-LINKED",
+            productCode: "LINKED-PRODUCT");
+        var otherSeed = await SeedBaseDataAsync(
+            dbContext,
+            patientNumber: "PT-OTHER",
+            productCode: "OTHER-PRODUCT");
+        var otherRecord = await AddVaccinationRecordAsync(dbContext, otherSeed);
+
+        dbContext.PatientPortalAccesses.Add(new PatientPortalAccess
+        {
+            UserId = patientUserId,
+            PatientId = linkedSeed.Patient.Id
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId: null,
+            role: Role.Patient,
+            userId: patientUserId);
+
+        Assert.ThrowsAsync<NotFoundException>(async () =>
+            await service.GetMyRecordAsync(otherRecord.Id));
+    }
+
+    [Test]
+    public async Task GetMyRecordsAsync_WhenCurrentUserIsNotPatient_ThrowsForbiddenException()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedBaseDataAsync(dbContext);
+        await AddVaccinationRecordAsync(dbContext, seed);
+
+        var service = CreateService(
+            dbContext,
+            seed.Hospital.Id,
+            role: Role.Doctor);
+
+        Assert.ThrowsAsync<ForbiddenException>(async () =>
+            await service.GetMyRecordsAsync(
+                new GetVaccinationRecordsRequest()));
+    }
+
+    [Test]
     public async Task UpdateRecordAsync_WithValidRequest_UpdatesRecord()
     {
         await using var dbContext = CreateDbContext();
@@ -309,11 +400,13 @@ public sealed class VaccinationRecordsServiceTests
 
     private static VaccinationRecordsService CreateService(
         VaccineTrackerDbContext dbContext,
-        Guid? hospitalId)
+        Guid? hospitalId,
+        Role role = Role.Doctor,
+        Guid? userId = null)
     {
         return new VaccinationRecordsService(
             dbContext,
-            new TestCurrentUser(CurrentUserId, hospitalId),
+            new TestCurrentUser(userId ?? CurrentUserId, hospitalId, role),
             NullLogger<VaccinationRecordsService>.Instance);
     }
 
@@ -462,10 +555,14 @@ public sealed class VaccinationRecordsServiceTests
 
     private sealed class TestCurrentUser : ICurrentUser
     {
-        public TestCurrentUser(Guid userId, Guid? hospitalId)
+        public TestCurrentUser(
+            Guid userId,
+            Guid? hospitalId,
+            Role role)
         {
             UserId = userId;
             HospitalId = hospitalId;
+            Role = role.ToString();
         }
 
         public Guid UserId { get; }
@@ -474,6 +571,6 @@ public sealed class VaccinationRecordsServiceTests
 
         public string Email => "doctor@test.com";
 
-        public string Role => Domain.Enums.Role.Doctor.ToString();
+        public string Role { get; }
     }
 }

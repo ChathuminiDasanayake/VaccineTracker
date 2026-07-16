@@ -577,6 +577,94 @@ public sealed class PatientsServiceTests
                 new UpdatePatientStatusRequest("Active")));
     }
 
+    [Test]
+    public async Task LinkPatientPortalAccessAsync_WithPatientUser_CreatesAccess()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        var patient = AddPatient(dbContext, hospitalId, "PAT-PORTAL");
+        var user = AddUser(dbContext, hospitalId, Role.Patient);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.HospitalAdmin);
+
+        var result = await service.LinkPatientPortalAccessAsync(
+            patient.Id,
+            new LinkPatientPortalAccessRequest
+            {
+                UserId = user.Id
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.PatientId, Is.EqualTo(patient.Id));
+            Assert.That(result.UserId, Is.EqualTo(user.Id));
+        });
+
+        var access = await dbContext.PatientPortalAccesses.SingleAsync();
+        Assert.That(access.CreatedBy, Is.Not.Null.And.Not.Empty);
+    }
+
+    [Test]
+    public async Task LinkPatientPortalAccessAsync_WhenUserIsNotPatient_ThrowsValidationException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        var patient = AddPatient(dbContext, hospitalId, "PAT-NONPATIENT");
+        var user = AddUser(dbContext, hospitalId, Role.Staff);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.HospitalAdmin);
+
+        Assert.ThrowsAsync<ValidationException>(async () =>
+            await service.LinkPatientPortalAccessAsync(
+                patient.Id,
+                new LinkPatientPortalAccessRequest
+                {
+                    UserId = user.Id
+                }));
+    }
+
+    [Test]
+    public async Task LinkPatientPortalAccessAsync_WhenDuplicateAccess_ThrowsConflictException()
+    {
+        await using var dbContext = CreateDbContext();
+        var hospitalId = Guid.NewGuid();
+        await AddHospitalAsync(dbContext, hospitalId);
+
+        var patient = AddPatient(dbContext, hospitalId, "PAT-DUPLICATE");
+        var user = AddUser(dbContext, hospitalId, Role.Patient);
+        dbContext.PatientPortalAccesses.Add(new PatientPortalAccess
+        {
+            UserId = user.Id,
+            PatientId = patient.Id
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(
+            dbContext,
+            hospitalId,
+            Role.HospitalAdmin);
+
+        Assert.ThrowsAsync<ConflictException>(async () =>
+            await service.LinkPatientPortalAccessAsync(
+                patient.Id,
+                new LinkPatientPortalAccessRequest
+                {
+                    UserId = user.Id
+                }));
+    }
+
     private static PatientsService CreateService(
         VaccineTrackerDbContext dbContext,
         Guid? hospitalId,
@@ -619,6 +707,51 @@ public sealed class PatientsServiceTests
         });
 
         await dbContext.SaveChangesAsync();
+    }
+
+    private static Patient AddPatient(
+        VaccineTrackerDbContext dbContext,
+        Guid hospitalId,
+        string patientNumber)
+    {
+        var patient = new Patient
+        {
+            HospitalId = hospitalId,
+            PatientNumber = patientNumber,
+            FirstName = "Portal",
+            LastName = "Patient",
+            DateOfBirth = new DateOnly(2020, 1, 1),
+            Gender = Gender.Female,
+            Status = EntityStatus.Active
+        };
+
+        dbContext.Patients.Add(patient);
+
+        return patient;
+    }
+
+    private static User AddUser(
+        VaccineTrackerDbContext dbContext,
+        Guid? hospitalId,
+        Role role)
+    {
+        var user = new User
+        {
+            Username = $"user-{Guid.NewGuid():N}",
+            NormalizedUsername = $"USER-{Guid.NewGuid():N}",
+            Email = $"user-{Guid.NewGuid():N}@test.com",
+            NormalizedEmail = $"USER-{Guid.NewGuid():N}@TEST.COM",
+            PasswordHash = "hash",
+            FirstName = "Portal",
+            LastName = "User",
+            HospitalId = hospitalId,
+            Status = EntityStatus.Active,
+            Roles = [role]
+        };
+
+        dbContext.Users.Add(user);
+
+        return user;
     }
 
     private static VaccineTrackerDbContext CreateDbContext()
