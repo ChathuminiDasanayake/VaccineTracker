@@ -31,4 +31,6 @@ public sealed class Document : BaseAuditableEntity
     public Patient? Patient { get; set; }
 
     public VaccinationRecord? VaccinationRecord { get; set; }
+
+    public ICollection<DocumentExtraction> Extractions { get; set; } = [];
 }

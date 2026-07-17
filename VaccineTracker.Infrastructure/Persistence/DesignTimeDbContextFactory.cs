@@ -18,7 +18,15 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<VaccineTra
                 "Set the ConnectionStrings__DefaultConnection environment variable before running EF Core commands.");
         }
 
-        optionsBuilder.UseSqlServer(connectionString);
+        optionsBuilder.UseSqlServer(
+            connectionString,
+            sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorNumbersToAdd: null);
+            });
 
         return new VaccineTrackerDbContext(optionsBuilder.Options);
     }

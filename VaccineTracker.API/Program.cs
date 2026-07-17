@@ -131,6 +131,8 @@ builder.Services.AddScoped<INextVaccinationDueService, NextVaccinationDueService
 builder.Services.AddScoped<INotificationOutboxService, NotificationOutboxService>();
 builder.Services.Configure<BlobStorageSettings>(
     builder.Configuration.GetSection(BlobStorageSettings.SectionName));
+builder.Services.Configure<DocumentIntelligenceSettings>(
+    builder.Configuration.GetSection(DocumentIntelligenceSettings.SectionName));
 
 if (string.Equals(
         builder.Configuration["DocumentStorage:Provider"],
@@ -145,6 +147,7 @@ else
 }
 
 builder.Services.AddScoped<IDocumentsService, DocumentsService>();
+builder.Services.AddScoped<IDocumentIntelligenceService, AzureDocumentIntelligenceService>();
 builder.Services.AddScoped<IRequestContext, RequestContext>();
 builder.Services.AddScoped<ILoginAuditService, LoginAuditService>();
 

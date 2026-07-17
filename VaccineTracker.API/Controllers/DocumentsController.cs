@@ -13,10 +13,14 @@ namespace VaccineTracker.API.Controllers;
 public sealed class DocumentsController : ControllerBase
 {
     private readonly IDocumentsService _documentsService;
+    private readonly IDocumentIntelligenceService _documentIntelligenceService;
 
-    public DocumentsController(IDocumentsService documentsService)
+    public DocumentsController(
+        IDocumentsService documentsService,
+        IDocumentIntelligenceService documentIntelligenceService)
     {
         _documentsService = documentsService;
+        _documentIntelligenceService = documentIntelligenceService;
     }
 
     [HttpGet]
@@ -121,6 +125,41 @@ public sealed class DocumentsController : ControllerBase
             cancellationToken);
 
         return NoContent();
+    }
+
+    [HttpPost("{id:guid}/analyze")]
+    [Authorize(Policy = AuthorizationPolicies.ViewPatientSensitiveData)]
+    [ProducesResponseType(typeof(DocumentExtractionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<DocumentExtractionResponse>> AnalyzeDocument(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var extraction = await _documentIntelligenceService.AnalyzeDocumentAsync(
+            id,
+            cancellationToken);
+
+        return Ok(extraction);
+    }
+
+    [HttpGet("{id:guid}/extractions")]
+    [Authorize(Policy = AuthorizationPolicies.ViewPatientSensitiveData)]
+    [ProducesResponseType(typeof(IReadOnlyList<DocumentExtractionResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<DocumentExtractionResponse>>> GetDocumentExtractions(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var extractions = await _documentIntelligenceService.GetDocumentExtractionsAsync(
+            id,
+            cancellationToken);
+
+        return Ok(extractions);
     }
 }
 

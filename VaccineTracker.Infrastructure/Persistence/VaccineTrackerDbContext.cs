@@ -24,6 +24,8 @@ public sealed class VaccineTrackerDbContext : DbContext
     public DbSet<VaccineManufacturer> VaccineManufacturers => Set<VaccineManufacturer>();
     public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<DocumentExtraction> DocumentExtractions => Set<DocumentExtraction>();
+    public DbSet<ExtractedDocumentField> ExtractedDocumentFields => Set<ExtractedDocumentField>();
     public DbSet<PatientPortalAccess> PatientPortalAccesses => Set<PatientPortalAccess>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -323,6 +325,59 @@ public sealed class VaccineTrackerDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(document => document.VaccinationRecordId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DocumentExtraction>(entity =>
+        {
+            entity.Property(extraction => extraction.ModelId)
+                .HasMaxLength(100);
+
+            entity.Property(extraction => extraction.RawResultJson)
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(extraction => extraction.OverallConfidence)
+                .HasPrecision(5, 4);
+
+            entity.HasIndex(extraction => extraction.DocumentId);
+
+            entity.HasIndex(extraction => new
+            {
+                extraction.DocumentId,
+                extraction.ProcessedAt
+            });
+
+            entity.HasOne(extraction => extraction.Document)
+                .WithMany(document => document.Extractions)
+                .HasForeignKey(extraction => extraction.DocumentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExtractedDocumentField>(entity =>
+        {
+            entity.Property(field => field.FieldName)
+                .HasMaxLength(100);
+
+            entity.Property(field => field.ExtractedValue)
+                .HasMaxLength(2000);
+
+            entity.Property(field => field.CorrectedValue)
+                .HasMaxLength(2000);
+
+            entity.Property(field => field.Confidence)
+                .HasPrecision(5, 4);
+
+            entity.HasIndex(field => field.DocumentExtractionId);
+
+            entity.HasIndex(field => new
+            {
+                field.DocumentExtractionId,
+                field.FieldName
+            });
+
+            entity.HasOne(field => field.DocumentExtraction)
+                .WithMany(extraction => extraction.Fields)
+                .HasForeignKey(field => field.DocumentExtractionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
     }
