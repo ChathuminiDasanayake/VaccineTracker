@@ -47,6 +47,123 @@ public sealed class VaccinationRecordsServiceTests
     }
 
     [Test]
+    public async Task CreateRecordAsync_WhenNextDoseExistsAndPatientHasEmail_CreatesNotificationOutbox()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedBaseDataAsync(dbContext);
+        seed.Patient.Email = "patient@test.com";
+
+        var nextScheduleItem = new VaccineScheduleItem
+        {
+            VaccineTypeId = seed.VaccineType.Id,
+            TargetGroup = VaccineTargetGroup.Child,
+            RepeatIntervalInDays = 60,
+            DoseNumber = 2,
+            Status = EntityStatus.Active
+        };
+
+        dbContext.VaccineScheduleItems.Add(nextScheduleItem);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext, seed.Hospital.Id);
+
+        await service.CreateRecordAsync(
+            CreateRequest(
+                seed.Patient.Id,
+                seed.Product.Id,
+                seed.ScheduleItem.Id));
+
+        var notification = await dbContext.NotificationOutbox.SingleAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(notification.PatientId, Is.EqualTo(seed.Patient.Id));
+            Assert.That(notification.VaccineScheduleItemId, Is.EqualTo(nextScheduleItem.Id));
+            Assert.That(notification.VaccinationRecordId, Is.Not.Null);
+            Assert.That(notification.Type, Is.EqualTo(NotificationType.VaccinationReminder));
+            Assert.That(notification.Channel, Is.EqualTo(NotificationChannel.Email));
+            Assert.That(notification.Recipient, Is.EqualTo("patient@test.com"));
+            Assert.That(notification.Status, Is.EqualTo(NotificationStatus.Pending));
+        });
+    }
+
+    [Test]
+    public async Task CreateRecordAsync_WhenNextDueIsDifferentVaccineType_CreatesNotificationOutbox()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedBaseDataAsync(dbContext);
+        seed.Patient.Email = "patient@test.com";
+
+        var otherVaccineType = new VaccineType
+        {
+            Name = "Polio Vaccine",
+            Code = "POLIO",
+            DiseaseTarget = "Poliomyelitis",
+            Status = EntityStatus.Active
+        };
+
+        dbContext.VaccineTypes.Add(otherVaccineType);
+        await dbContext.SaveChangesAsync();
+
+        var otherScheduleItem = new VaccineScheduleItem
+        {
+            VaccineTypeId = otherVaccineType.Id,
+            TargetGroup = VaccineTargetGroup.Child,
+            DueAgeInDays = 365,
+            DoseNumber = 1,
+            Status = EntityStatus.Active
+        };
+
+        dbContext.VaccineScheduleItems.Add(otherScheduleItem);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext, seed.Hospital.Id);
+
+        await service.CreateRecordAsync(
+            CreateRequest(
+                seed.Patient.Id,
+                seed.Product.Id,
+                seed.ScheduleItem.Id));
+
+        var notification = await dbContext.NotificationOutbox.SingleAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(notification.PatientId, Is.EqualTo(seed.Patient.Id));
+            Assert.That(notification.VaccineScheduleItemId, Is.EqualTo(otherScheduleItem.Id));
+            Assert.That(notification.Type, Is.EqualTo(NotificationType.VaccinationReminder));
+            Assert.That(notification.Recipient, Is.EqualTo("patient@test.com"));
+        });
+    }
+
+    [Test]
+    public async Task CreateRecordAsync_WhenNextDoseExistsButPatientHasNoEmail_DoesNotCreateNotificationOutbox()
+    {
+        await using var dbContext = CreateDbContext();
+        var seed = await SeedBaseDataAsync(dbContext);
+
+        dbContext.VaccineScheduleItems.Add(new VaccineScheduleItem
+        {
+            VaccineTypeId = seed.VaccineType.Id,
+            TargetGroup = VaccineTargetGroup.Child,
+            RepeatIntervalInDays = 60,
+            DoseNumber = 2,
+            Status = EntityStatus.Active
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext, seed.Hospital.Id);
+
+        await service.CreateRecordAsync(
+            CreateRequest(
+                seed.Patient.Id,
+                seed.Product.Id,
+                seed.ScheduleItem.Id));
+
+        Assert.That(await dbContext.NotificationOutbox.CountAsync(), Is.Zero);
+    }
+
+    [Test]
     public async Task CreateRecordAsync_WhenPatientBelongsToOtherHospital_ThrowsNotFoundException()
     {
         await using var dbContext = CreateDbContext();
@@ -404,9 +521,15 @@ public sealed class VaccinationRecordsServiceTests
         Role role = Role.Doctor,
         Guid? userId = null)
     {
+        var currentUser = new TestCurrentUser(userId ?? CurrentUserId, hospitalId, role);
+
         return new VaccinationRecordsService(
             dbContext,
-            new TestCurrentUser(userId ?? CurrentUserId, hospitalId, role),
+            currentUser,
+            new NextVaccinationDueService(dbContext, currentUser),
+            new NotificationOutboxService(
+                dbContext,
+                NullLogger<NotificationOutboxService>.Instance),
             NullLogger<VaccinationRecordsService>.Instance);
     }
 

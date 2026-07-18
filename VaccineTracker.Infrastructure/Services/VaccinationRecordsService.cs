@@ -14,15 +14,21 @@ public sealed class VaccinationRecordsService : IVaccinationRecordsService
 {
     private readonly VaccineTrackerDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
+    private readonly INextVaccinationDueService _nextVaccinationDueService;
+    private readonly INotificationOutboxService _notificationOutboxService;
     private readonly ILogger<VaccinationRecordsService> _logger;
 
     public VaccinationRecordsService(
         VaccineTrackerDbContext dbContext,
         ICurrentUser currentUser,
+        INextVaccinationDueService nextVaccinationDueService,
+        INotificationOutboxService notificationOutboxService,
         ILogger<VaccinationRecordsService> logger)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
+        _nextVaccinationDueService = nextVaccinationDueService;
+        _notificationOutboxService = notificationOutboxService;
         _logger = logger;
     }
 
@@ -310,6 +316,25 @@ public sealed class VaccinationRecordsService : IVaccinationRecordsService
 
         _dbContext.VaccinationRecords.Add(record);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var nextDue = await _nextVaccinationDueService.GetNextDueForPatientAsync(
+            patient.Id,
+            cancellationToken);
+
+        if (nextDue is not null)
+        {
+            await _notificationOutboxService.CreateVaccinationReminderAsync(
+                nextDue,
+                record.Id,
+                cancellationToken);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "No next due vaccination found after creating record {RecordId} for patient {PatientId}.",
+                record.Id,
+                record.PatientId);
+        }
 
         _logger.LogInformation(
             "Vaccination record {RecordId} created for patient {PatientId}.",
