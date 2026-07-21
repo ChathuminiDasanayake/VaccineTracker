@@ -83,6 +83,7 @@ public sealed class VaccinationRecordsServiceTests
             Assert.That(notification.Type, Is.EqualTo(NotificationType.VaccinationReminder));
             Assert.That(notification.Channel, Is.EqualTo(NotificationChannel.Email));
             Assert.That(notification.Recipient, Is.EqualTo("patient@test.com"));
+            Assert.That(notification.DueDate, Is.EqualTo(new DateOnly(2026, 3, 2)));
             Assert.That(notification.Status, Is.EqualTo(NotificationStatus.Pending));
         });
     }
@@ -133,6 +134,7 @@ public sealed class VaccinationRecordsServiceTests
             Assert.That(notification.VaccineScheduleItemId, Is.EqualTo(otherScheduleItem.Id));
             Assert.That(notification.Type, Is.EqualTo(NotificationType.VaccinationReminder));
             Assert.That(notification.Recipient, Is.EqualTo("patient@test.com"));
+            Assert.That(notification.DueDate, Is.EqualTo(new DateOnly(2026, 1, 1)));
         });
     }
 

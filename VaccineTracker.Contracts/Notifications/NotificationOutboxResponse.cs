@@ -11,6 +11,7 @@ public sealed record NotificationOutboxResponse(
     string Recipient,
     string Subject,
     string PayloadJson,
+    DateOnly? DueDate,
     DateTime SendAfterUtc,
     string Status,
     int AttemptCount,

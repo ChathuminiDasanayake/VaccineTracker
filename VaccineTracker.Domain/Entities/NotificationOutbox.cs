@@ -21,6 +21,8 @@ public sealed class NotificationOutbox : BaseAuditableEntity
 
     public string PayloadJson { get; set; } = string.Empty;
 
+    public DateOnly? DueDate { get; set; }
+
     public DateTime SendAfterUtc { get; set; }
 
     public NotificationStatus Status { get; set; } = NotificationStatus.Pending;

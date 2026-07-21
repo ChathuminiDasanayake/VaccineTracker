@@ -256,6 +256,12 @@ public sealed class VaccineTrackerDbContext : DbContext
                 notification.SendAfterUtc
             });
 
+            entity.HasIndex(notification => new
+            {
+                notification.Status,
+                notification.DueDate
+            });
+
             entity.HasIndex(notification => notification.PatientId);
 
             entity.HasIndex(notification => notification.VaccineScheduleItemId);

@@ -106,6 +106,7 @@ public sealed class NotificationOutboxService : INotificationOutboxService
                 nextDue.IsOverdue,
                 nextDue.Description
             }),
+            DueDate = nextDue.DueDate,
             SendAfterUtc = sendAfterUtc,
             Status = NotificationStatus.Pending
         };
@@ -150,6 +151,7 @@ public sealed class NotificationOutboxService : INotificationOutboxService
                 notification.Recipient,
                 notification.Subject,
                 notification.PayloadJson,
+                notification.DueDate,
                 notification.SendAfterUtc,
                 notification.Status.ToString(),
                 notification.AttemptCount,
@@ -310,6 +312,7 @@ public sealed class NotificationOutboxService : INotificationOutboxService
             notification.Recipient,
             notification.Subject,
             notification.PayloadJson,
+            notification.DueDate,
             notification.SendAfterUtc,
             notification.Status.ToString(),
             notification.AttemptCount,
